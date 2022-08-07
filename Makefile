@@ -22,7 +22,7 @@ inc = -I. -Ilibs/maxmod
 
 CFLAGS = $(opt) $(dbg) -pedantic -Wall -MMD $(def) $(inc)
 ASFLAGS = -mthumb-interwork
-LDFLAGS = -mthumb -mthumb-interwork $(libs)
+LDFLAGS = -mthumb -mthumb-interwork $(libs) -lm
 
 -include cfg.mk
 
