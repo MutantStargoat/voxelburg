@@ -1,6 +1,6 @@
 /*
-blender for the Gameboy Advance
-Copyright (C) 2021  John Tsiombikas <nuclear@member.fsf.org>
+gbajam22 entry for the Gameboy Advance
+Copyright (C) 2022  John Tsiombikas <nuclear@mutantstargoat.com>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -190,6 +190,8 @@ static void xform_norm(struct xvertex *out, const struct xvertex *in, const int3
 
 /* d = 1.0 / tan(fov/2) */
 #define PROJ_D	0x20000
+/* near Z = 0.5 */
+#define NEAR_Z	0x10000
 
 void xgl_draw(int prim, const struct xvertex *varr, int vcount)
 {
@@ -204,47 +206,45 @@ void xgl_draw(int prim, const struct xvertex *varr, int vcount)
 	}
 
 	while(vcount >= prim) {
-		cidx = varr->cidx;
+		cidx = 0xff;//varr->cidx;
 
 		xform(xv, varr, mat[mtop]);
 		xform_norm(xv, varr, mat[mtop]);
 
-		if(xv->nz > 0) {
-			/* backface */
-			varr += prim;
-			vcount -= prim;
-			continue;
-		}
+		/* backfacing check */
+		if(xv->nz > 0) goto skip_poly;
 
+		/*
 		if(opt & XGL_LIGHTING) {
 			ndotl = (xv->nx >> 8) * ldir[0] + (xv->ny >> 8) * ldir[1] + (xv->nz >> 8) * ldir[2];
 			if(ndotl < 0) ndotl = 0;
 			cidx = 128 + (ndotl >> 9);
 			if(cidx > 255) cidx = 255;
 		}
+		*/
 
-		xv->x = (xv->x << 1) / (xv->z >> 8);	/* assume aspect: ~2 */
-		xv->y = (xv->y << 2) / (xv->z >> 8);	/* the shift is * PROJ_D */
-		/* projection result is 24.8 */
-		/* viewport */
-		pv->x = (((xv->x + 0x100) >> 1) * vp[2]) + (vp[0] << 8);
-		pv->y = (((0x100 - xv->y) >> 1) * vp[3]) + (vp[1] << 8);
-		varr++;
-
-		for(i=1; i<prim; i++) {
-			xform(xv + i, varr, mat[mtop]);
-
+		for(i=0; i<prim; i++) {
+			if(i > 0) {
+				xform(xv + i, varr + i, mat[mtop]);
+			}
 			xv[i].x = (xv[i].x << 1) / (xv[i].z >> 8);	/* assume aspect: ~2 */
 			xv[i].y = (xv[i].y << 2) / (xv[i].z >> 8);	/* the shift is * PROJ_D */
-			/* projection result is 24.8 */
+			/* transform result is 24.8 */
+		}
+
+		/* clip against near plane */
+
+
+		for(i=0; i<prim; i++) {
 			/* viewport */
 			pv[i].x = (((xv[i].x + 0x100) >> 1) * vp[2]) + (vp[0] << 8);
 			pv[i].y = (((0x100 - xv[i].y) >> 1) * vp[3]) + (vp[1] << 8);
-			varr++;
 		}
-		vcount -= prim;
 
 		polyfill_flat(pv, prim, cidx);
+skip_poly:
+		varr += prim;
+		vcount -= prim;
 	}
 }
 
@@ -284,11 +284,91 @@ static void draw_ptlines(int prim, const struct xvertex *varr, int vcount)
 #ifndef ALT_LCLIP
 		clip_line((int*)&xv[0].x, (int*)&xv[0].y, (int*)&xv[1].x, (int*)&xv[1].y, vp[0], vp[1], vp[2] - 1, vp[3] - 1);
 #endif
-		draw_line(xv[0].x, xv[0].y, xv[1].x, xv[1].y, varr[-2].cidx);
+		draw_line(xv[0].x, xv[0].y, xv[1].x, xv[1].y, 0xff);
 	}
 }
 
 void xgl_xyzzy(void)
 {
 	mat[mtop][12] = mat[mtop][13] = 0;
+}
+
+#define ISECT_NEAR(v0, v1)	((((v0)->z - NEAR_Z) << 8) / (((v0)->z - (v1)->z) >> 8))
+
+#define LERP_VATTR(res, v0, v1, t) \
+	do { \
+		(res)->x = (v0)->x + (((v1)->x - (v0)->x) >> 8) * (t);	\
+		(res)->y = (v0)->y + (((v1)->y - (v0)->y) >> 8) * (t);	\
+		(res)->z = (v0)->z + (((v1)->z - (v0)->z) >> 8) * (t);	\
+		(res)->nx = (v0)->nx + (((v1)->nx - (v0)->nx) >> 8) * (t);	\
+		(res)->ny = (v0)->ny + (((v1)->ny - (v0)->ny) >> 8) * (t);	\
+		(res)->nz = (v0)->nz + (((v1)->nz - (v0)->nz) >> 8) * (t);	\
+		(res)->tx = (v0)->tx + (((v1)->tx - (v0)->tx) >> 8) * (t);	\
+		(res)->ty = (v0)->ty + (((v1)->ty - (v0)->ty) >> 8) * (t);	\
+		(res)->lit = (v0)->lit + (((v1)->lit - (v0)->lit) >> 8) * (t); \
+	} while(0)
+
+static int clip_edge_near(struct xvertex *poly, int *vnumptr, struct xvertex *v0, struct xvertex *v1)
+{
+	int vnum = *vnumptr;
+	int in0, in1;
+	int32_t t;
+	struct xvertex *vptr;
+
+	in0 = v0->z >= NEAR_Z ? 1 : 0;
+	in1 = v1->z >= NEAR_Z ? 1 : 0;
+
+	if(in0) {
+		/* start inside */
+		if(in1) {
+			/* all inside */
+			poly[vnum++] = *v1;	/* append v1 */
+			*vnumptr = vnum;
+			return 1;
+		} else {
+			/* going out */
+			vptr = poly + vnum;
+			t = ISECT_NEAR(v0, v1);	/* 24:8 */
+			LERP_VATTR(vptr, v0, v1, t);
+			++vnum;		/* append new vertex on the intersection point */
+		}
+	} else {
+		/* start outside */
+		if(in1) {
+			/* going in */
+			vptr = poly + vnum;
+			t = ISECT_NEAR(v0, v1);
+			LERP_VATTR(vptr, v0, v1, t);
+			++vnum;		/* append new vertex ... */
+			/* then append v1 */
+			poly[vnum++] = *v1;
+		} else {
+			/* all outside */
+			return -1;
+		}
+	}
+
+	*vnumptr = vnum;
+	return 0;
+}
+
+/* special case near-plane clipper */
+int xgl_clip_near(struct xvertex *vout, int *voutnum, struct xvertex *vin, int vnum)
+{
+	int i, nextidx, res;
+	int edges_clipped = 0;
+
+	*voutnum = 0;
+
+	for(i=0; i<vnum; i++) {
+		nextidx = i + 1;
+		if(nextidx >= vnum) nextidx = 0;
+		res = clip_edge_near(vout, voutnum, vin + i, vin + nextidx);
+		if(res == 0) {
+			++edges_clipped;
+		}
+	}
+
+	if(*voutnum <= 0) return -1;
+	return edges_clipped > 0 ? 0 : 1;
 }

@@ -6,6 +6,7 @@
 #include "util.h"
 #include "intr.h"
 #include "input.h"
+#include "player.h"
 #include "sprite.h"
 #include "debug.h"
 #include "level.h"
@@ -33,43 +34,18 @@ static const char *testlvl =
 	"#### ###\n"
 	"########\n";
 
-static struct xvertex cube[] __attribute__((section(".rodata"))) = {
-	/* front */
-	{-0x10000, -0x10000, -0x10000,	0, 0, -0x10000,	255},
-	{0x10000, -0x10000, -0x10000,	0, 0, -0x10000,	255},
-	{0x10000, 0x10000, -0x10000,	0, 0, -0x10000,	255},
-	{-0x10000, 0x10000, -0x10000,	0, 0, -0x10000,	255},
-	/* right */
-	{0x10000, -0x10000, -0x10000,	0x10000, 0, 0,	128},
-	{0x10000, -0x10000, 0x10000,	0x10000, 0, 0,	128},
-	{0x10000, 0x10000, 0x10000,		0x10000, 0, 0,	128},
-	{0x10000, 0x10000, -0x10000,	0x10000, 0, 0,	128},
-	/* back */
-	{0x10000, -0x10000, 0x10000,	0, 0, 0x10000,	200},
-	{-0x10000, -0x10000, 0x10000,	0, 0, 0x10000,	200},
-	{-0x10000, 0x10000, 0x10000,	0, 0, 0x10000,	200},
-	{0x10000, 0x10000, 0x10000,		0, 0, 0x10000,	200},
-	/* left */
-	{-0x10000, -0x10000, 0x10000,	-0x10000, 0, 0,	192},
-	{-0x10000, -0x10000, -0x10000,	-0x10000, 0, 0,	192},
-	{-0x10000, 0x10000, -0x10000,	-0x10000, 0, 0,	192},
-	{-0x10000, 0x10000, 0x10000,	-0x10000, 0, 0,	192},
-	/* top */
-	{-0x10000, 0x10000, -0x10000,	0, 0x10000, 0,	150},
-	{0x10000, 0x10000, -0x10000,	0, 0x10000, 0,	150},
-	{0x10000, 0x10000, 0x10000,		0, 0x10000, 0,	150},
-	{-0x10000, 0x10000, 0x10000,	0, 0x10000, 0,	150},
-	/* bottom */
-	{0x10000, -0x10000, -0x10000,	0, -0x10000, 0,	210},
-	{-0x10000, -0x10000, -0x10000,	0, -0x10000, 0,	210},
-	{-0x10000, -0x10000, 0x10000,	0, -0x10000, 0,	210},
-	{0x10000, -0x10000, 0x10000,	0, -0x10000, 0,	210}
+static struct xvertex tm_floor[] __attribute__((section(".rodata"))) = {
+	{0x10000, -0x10000, 0x10000,	0, 0x10000, 0,	210},
+	{-0x10000, -0x10000, 0x10000,	0, 0x10000, 0,	210},
+	{-0x10000, -0x10000, -0x10000,	0, 0x10000, 0,	210},
+	{0x10000, -0x10000, -0x10000,	0, 0x10000, 0,	210}
 };
 
 
 static struct level *lvl;
 
-static int32_t cam_theta, cam_phi;
+static struct player player;
+
 
 void gamescr(void)
 {
@@ -83,7 +59,10 @@ void gamescr(void)
 
 	xgl_init();
 
-	select_input(BN_DPAD);
+	memset(&player, 0, sizeof player);
+	player.y = 0x60000;
+
+	select_input(BN_DPAD | BN_A | BN_B);
 
 	mask(INTR_VBLANK);
 	screen_vblank = vblank;
@@ -113,33 +92,17 @@ static void update(void)
 
 	bnstate = get_input();
 
-	if(bnstate & KEY_UP) {
-		cam_phi += 0x2000;
-		if(cam_phi > X_HPI) cam_phi = X_HPI;
-	}
-	if(bnstate & KEY_DOWN) {
-		cam_phi -= 0x2000;
-		if(cam_phi < -X_HPI) cam_phi = -X_HPI;
-	}
-	if(bnstate & KEY_LEFT) {
-		cam_theta += 0x2000;
-		if(cam_theta > X_2PI) cam_theta -= X_2PI;
-	}
-	if(bnstate & KEY_RIGHT) {
-		cam_theta -= 0x2000;
-		if(cam_theta < X_2PI) cam_theta += X_2PI;
-	}
+	player_input(&player, bnstate);
 }
 
 static void draw(void)
 {
 	xgl_load_identity();
-	//xgl_translate(0, -0x50000, 0);
-	xgl_translate(0, 0, 0x80000);
-	xgl_rotate_x(cam_phi);
-	xgl_rotate_y(cam_theta);
+	xgl_rotate_x(player.phi);
+	xgl_rotate_y(player.theta);
+	xgl_translate(player.x, 0, player.y);
 
-	xgl_draw(XGL_QUADS, cube, sizeof cube / sizeof *cube);
+	xgl_draw(XGL_QUADS, tm_floor, sizeof tm_floor / sizeof *tm_floor);
 }
 
 __attribute__((noinline, target("arm"), section(".iwram")))

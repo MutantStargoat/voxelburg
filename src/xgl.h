@@ -1,6 +1,6 @@
 /*
-blender for the Gameboy Advance
-Copyright (C) 2021  John Tsiombikas <nuclear@member.fsf.org>
+gbajam22 entry for the Gameboy Advance
+Copyright (C) 2022  John Tsiombikas <nuclear@mutantstargoat.com>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -37,7 +37,8 @@ enum {
 struct xvertex {
 	int32_t x, y, z;
 	int32_t nx, ny, nz;
-	unsigned char cidx;
+	int32_t tx, ty;
+	int32_t lit;
 };
 
 void xgl_init(void);
