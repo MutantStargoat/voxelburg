@@ -191,7 +191,7 @@ static void xform_norm(struct xvertex *out, const struct xvertex *in, const int3
 /* d = 1.0 / tan(fov/2) */
 #define PROJ_D	0x20000
 /* near Z = 0.5 */
-#define NEAR_Z	0x30000
+#define NEAR_Z	0x40000
 
 void xgl_draw(int prim, const struct xvertex *varr, int vcount)
 {
@@ -293,13 +293,14 @@ void xgl_xyzzy(void)
 	mat[mtop][12] = mat[mtop][13] = 0;
 }
 
-#define ISECT_NEAR(v0, v1)	((((v0)->z - NEAR_Z) << 8) / (((v0)->z - (v1)->z) >> 8))
+/* 24.8 */
+#define ISECT_NEAR(v0, v1)	((((v0)->z - NEAR_Z) << 8) / ((v0)->z - (v1)->z))
 
 #define LERP_VATTR(res, v0, v1, t) \
 	do { \
-		(res)->x = (v0)->x + (((v1)->x - (v0)->x) >> 8) * (t);	\
-		(res)->y = (v0)->y + (((v1)->y - (v0)->y) >> 8) * (t);	\
-		(res)->z = (v0)->z + (((v1)->z - (v0)->z) >> 8) * (t);	\
+		(res)->x = (v0)->x + (((v1)->x - (v0)->x) * (t) >> 8);	\
+		(res)->y = (v0)->y + (((v1)->y - (v0)->y) * (t) >> 8);	\
+		(res)->z = (v0)->z + (((v1)->z - (v0)->nx) >> 8) * (t);	\
 		(res)->nx = (v0)->nx + (((v1)->nx - (v0)->nx) >> 8) * (t);	\
 		(res)->ny = (v0)->ny + (((v1)->ny - (v0)->ny) >> 8) * (t);	\
 		(res)->nz = (v0)->nz + (((v1)->nz - (v0)->nz) >> 8) * (t);	\

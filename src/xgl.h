@@ -18,6 +18,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #ifndef XGL_H_
 #define XGL_H_
 
+#include <stdint.h>
+
 #define X_PI	0x3243f
 #define X_2PI	0x6487f
 #define X_HPI	0x19220

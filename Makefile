@@ -16,7 +16,7 @@ AS = $(TCPREFIX)as
 OBJCOPY = $(TCPREFIX)objcopy
 OBJDUMP = $(TCPREFIX)objdump
 
-opt = -O3 -fomit-frame-pointer -mcpu=arm7tdmi -mtune=arm7tdmi -mthumb -mthumb-interwork
+opt = -O0 -fomit-frame-pointer -mcpu=arm7tdmi -mtune=arm7tdmi -mthumb -mthumb-interwork
 dbg = -g
 inc = -I. -Ilibs/maxmod
 
