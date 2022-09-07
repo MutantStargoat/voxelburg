@@ -191,12 +191,12 @@ static void xform_norm(struct xvertex *out, const struct xvertex *in, const int3
 /* d = 1.0 / tan(fov/2) */
 #define PROJ_D	0x20000
 /* near Z = 0.5 */
-#define NEAR_Z	0x10000
+#define NEAR_Z	0x30000
 
 void xgl_draw(int prim, const struct xvertex *varr, int vcount)
 {
-	int i, cidx;
-	struct xvertex xv[4];
+	int i, cidx, clipnum;
+	struct xvertex xv[4], xvclip[8];
 	struct pvertex pv[4];
 	int32_t ndotl;
 
@@ -233,15 +233,15 @@ void xgl_draw(int prim, const struct xvertex *varr, int vcount)
 		}
 
 		/* clip against near plane */
+		xgl_clip_near(xvclip, &clipnum, xv, prim);
 
-
-		for(i=0; i<prim; i++) {
+		for(i=0; i<clipnum; i++) {
 			/* viewport */
-			pv[i].x = (((xv[i].x + 0x100) >> 1) * vp[2]) + (vp[0] << 8);
-			pv[i].y = (((0x100 - xv[i].y) >> 1) * vp[3]) + (vp[1] << 8);
+			pv[i].x = (((xvclip[i].x + 0x100) >> 1) * vp[2]) + (vp[0] << 8);
+			pv[i].y = (((0x100 - xvclip[i].y) >> 1) * vp[3]) + (vp[1] << 8);
 		}
 
-		polyfill_flat(pv, prim, cidx);
+		polyfill_flat(pv, clipnum, cidx);
 skip_poly:
 		varr += prim;
 		vcount -= prim;

@@ -66,4 +66,6 @@ void xgl_transform(const struct xvertex *vin, int *x, int *y);
 
 void xgl_xyzzy(void);
 
+int xgl_clip_near(struct xvertex *vout, int *voutnum, struct xvertex *vin, int vnum);
+
 #endif	/* XGL_H_ */

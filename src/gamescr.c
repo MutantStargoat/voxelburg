@@ -101,6 +101,7 @@ static void draw(void)
 	xgl_rotate_x(player.phi);
 	xgl_rotate_y(player.theta);
 	xgl_translate(player.x, 0, player.y);
+	xgl_rotate_y(X_QPI);
 
 	xgl_draw(XGL_QUADS, tm_floor, sizeof tm_floor / sizeof *tm_floor);
 }
