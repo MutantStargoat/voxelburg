@@ -3,6 +3,9 @@
 
 #include <stdint.h>
 
+/* cell size in 16.16 fixed point */
+#define CELL_SIZE	0x20000
+
 enum { MOBS_DEAD, MOBS_IDLE, MOBS_ENGAGE, MOBS_RUN };
 
 struct mob {
@@ -28,7 +31,7 @@ enum { CELL_SOLID, CELL_WALK };
 struct cell {
 	uint8_t type;
 	uint8_t x, y;
-	uint8_t pad;
+	uint8_t rank;
 	struct mob *mobs;
 	struct item *items;
 };
@@ -40,10 +43,19 @@ struct level {
 
 	struct mob *mobs;
 	struct item *items;
+
+	/* populated by calc_vis */
+	struct cell **vis;
+	int numvis;
 };
 
 
 struct level *init_level(const char *descstr);
 void free_level(struct level *lvl);
+
+void upd_vis(struct level *lvl, int32_t px, int32_t py, int32_t angle);
+
+void cell_to_pos(int cx, int cy, int32_t *px, int32_t *py);
+void pos_to_cell(int32_t px, int32_t py, int *cx, int *cy);
 
 #endif	/* LEVEL_H_ */

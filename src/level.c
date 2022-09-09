@@ -74,3 +74,29 @@ void free_level(struct level *lvl)
 		free(tmp);
 	}
 }
+
+void upd_vis(struct level *lvl, int32_t px, int32_t py, int32_t angle)
+{
+	int cx, cy;
+
+	lvl->numvis = 0;
+
+	pos_to_cell(px, py, &cx, &cy);
+
+	/* TODO: cont. */
+}
+
+void cell_to_pos(int cx, int cy, int32_t *px, int32_t *py)
+{
+	*px = cx * CELL_SIZE - (CELL_SIZE >> 1);
+	*py = cy * CELL_SIZE - (CELL_SIZE >> 1);
+}
+
+void pos_to_cell(int32_t px, int32_t py, int *cx, int *cy)
+{
+	_Static_assert((CELL_SIZE & ~0xff) == CELL_SIZE,
+			"CELL_SIZE >> 8 in pos_to_cell will lose significant bits");
+
+	*cx = ((px + (CELL_SIZE >> 1)) << 8) / (CELL_SIZE >> 8);
+	*cy = ((py + (CELL_SIZE >> 1)) << 8) / (CELL_SIZE >> 8);
+}
