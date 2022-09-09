@@ -87,6 +87,9 @@ void polyfill_flat(struct pvertex *varr, int vnum, unsigned char col)
 		}
 	}
 
+	if(top < 0) top = 0;
+	if(bot >= fbheight) bot = fbheight - 1;
+
 	fbptr = fb + top * fbwidth;
 	for(i=top; i<=bot; i++) {
 		start = scantab[0][i];
