@@ -116,6 +116,7 @@ void xgl_mult_matrix(const int32_t *m2)
 	}
 }
 
+/* XXX TODO XXX */
 #define XSIN(x)		(int32_t)(sin(x / 65536.0f) * 65536.0f)
 #define XCOS(x)		(int32_t)(cos(x / 65536.0f) * 65536.0f)
 
@@ -191,7 +192,7 @@ static void xform_norm(struct xvertex *out, const struct xvertex *in, const int3
 /* d = 1.0 / tan(fov/2) */
 #define PROJ_D	0x20000
 /* near Z = 0.5 */
-#define NEAR_Z	0x40000
+#define NEAR_Z	0x18000
 
 void xgl_draw(int prim, const struct xvertex *varr, int vcount)
 {
@@ -211,9 +212,6 @@ void xgl_draw(int prim, const struct xvertex *varr, int vcount)
 		xform(xv, varr, mat[mtop]);
 		xform_norm(xv, varr, mat[mtop]);
 
-		/* backfacing check */
-		if(xv->nz > 0) goto skip_poly;
-
 		/*
 		if(opt & XGL_LIGHTING) {
 			ndotl = (xv->nx >> 8) * ldir[0] + (xv->ny >> 8) * ldir[1] + (xv->nz >> 8) * ldir[2];
@@ -223,19 +221,18 @@ void xgl_draw(int prim, const struct xvertex *varr, int vcount)
 		}
 		*/
 
-		for(i=0; i<prim; i++) {
-			if(i > 0) {
-				xform(xv + i, varr + i, mat[mtop]);
-			}
-			xv[i].x = (xv[i].x << 1) / (xv[i].z >> 8);	/* assume aspect: ~2 */
-			xv[i].y = (xv[i].y << 2) / (xv[i].z >> 8);	/* the shift is * PROJ_D */
-			/* transform result is 24.8 */
+		/* transform the rest of the vertices to view space */
+		for(i=1; i<prim; i++) {
+			xform(xv + i, varr + i, mat[mtop]);
 		}
 
 		/* clip against near plane */
 		xgl_clip_near(xvclip, &clipnum, xv, prim);
 
 		for(i=0; i<clipnum; i++) {
+			xvclip[i].x = (xvclip[i].x << 1) / (xvclip[i].z >> 8);	/* assume aspect: ~2 */
+			xvclip[i].y = (xvclip[i].y << 2) / (xvclip[i].z >> 8);	/* the shift is * PROJ_D */
+			/* transform result is 24.8 */
 			/* viewport */
 			pv[i].x = (((xvclip[i].x + 0x100) >> 1) * vp[2]) + (vp[0] << 8);
 			pv[i].y = (((0x100 - xvclip[i].y) >> 1) * vp[3]) + (vp[1] << 8);
@@ -293,14 +290,13 @@ void xgl_xyzzy(void)
 	mat[mtop][12] = mat[mtop][13] = 0;
 }
 
-/* 24.8 */
 #define ISECT_NEAR(v0, v1)	((((v0)->z - NEAR_Z) << 8) / ((v0)->z - (v1)->z))
 
 #define LERP_VATTR(res, v0, v1, t) \
 	do { \
-		(res)->x = (v0)->x + (((v1)->x - (v0)->x) * (t) >> 8);	\
-		(res)->y = (v0)->y + (((v1)->y - (v0)->y) * (t) >> 8);	\
-		(res)->z = (v0)->z + (((v1)->z - (v0)->nx) >> 8) * (t);	\
+		(res)->x = (v0)->x + (((v1)->x - (v0)->x) >> 8) * (t);	\
+		(res)->y = (v0)->y + (((v1)->y - (v0)->y) >> 8) * (t);	\
+		(res)->z = (v0)->z + (((v1)->z - (v0)->z) >> 8) * (t);	\
 		(res)->nx = (v0)->nx + (((v1)->nx - (v0)->nx) >> 8) * (t);	\
 		(res)->ny = (v0)->ny + (((v1)->ny - (v0)->ny) >> 8) * (t);	\
 		(res)->nz = (v0)->nz + (((v1)->nz - (v0)->nz) >> 8) * (t);	\

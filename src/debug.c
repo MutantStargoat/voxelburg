@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include <ctype.h>
 #include <stdarg.h>
 #include "gbaregs.h"
@@ -130,22 +131,40 @@ int dbg_drawstr(int x, int y, const char *fmt, ...)
 }
 
 #ifdef EMUBUILD
-__attribute__((target("arm")))
+#define REG_DBG_ENABLE	REG16(0xfff780)
+#define REG_DBG_FLAGS	REG16(0xfff700)
+#define REG_DBG_STR		REG8(0xfff600)
+
+/*__attribute__((target("arm")))*/
 void emuprint(const char *fmt, ...)
 {
+	static int opened;
 	char buf[128];
 	va_list ap;
+
+	if(!opened) {
+		REG_DBG_ENABLE = 0xc0de;
+		if(REG_DBG_ENABLE != 0x1dea) {
+			return;
+		}
+		opened = 1;
+	}
 
 	va_start(ap, fmt);
 	vsnprintf(buf, sizeof buf, fmt, ap);
 	va_end(ap);
 
+	strcpy((char*)0x4fff600, buf);
+	REG_DBG_FLAGS = 0x104;	/* debug message */
+
+	/*
 	asm volatile(
 		"mov r0, %0\n\t"
 		"swi 0xff0000\n\t" :
 		: "r" (buf)
 		: "r0"
 	);
+	*/
 }
 #else
 void emuprint(const char *fmt, ...)

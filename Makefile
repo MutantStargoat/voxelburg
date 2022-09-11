@@ -46,6 +46,9 @@ tools/pngdump/pngdump:
 tools/lutgen: tools/lutgen.c
 	cc -o $@ $< -lm
 
+tools/vistab: tools/vistab.c
+	cc -o $@ $< -lm
+
 tools/mmutil/mmutil:
 	$(MAKE) -C tools/mmutil
 

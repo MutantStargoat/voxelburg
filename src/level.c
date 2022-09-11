@@ -1,6 +1,7 @@
 #include "util.h"
 #include "debug.h"
 #include "level.h"
+#include "player.h"
 
 struct level *init_level(const char *descstr)
 {
@@ -33,6 +34,8 @@ struct level *init_level(const char *descstr)
 	lvl->width = ncols;
 	lvl->xmask = ncols - 1;
 	lvl->height = nrows;
+	lvl->orgx = lvl->width >> 1;
+	lvl->orgy = lvl->height >> 1;
 	lvl->cells = calloc_nf(ncols * nrows, sizeof *lvl->cells);
 	lvl->mobs = 0;
 	lvl->items = 0;
@@ -75,28 +78,61 @@ void free_level(struct level *lvl)
 	}
 }
 
-void upd_vis(struct level *lvl, int32_t px, int32_t py, int32_t angle)
+struct {int dx, dy;} visoffs[8][32] = {
+	/* dir 0 */
+	{{-2,-4}, {2,-4}, {-1,-4}, {1,-4}, {0,-4}, {-1,-3}, {1,-3}, {0,-3}, {-1,-2},
+	 {1,-2}, {0,-2}, {0,-1}, {0,0}},
+	/* dir 1 */
+	{{4,-4}, {3,-4}, {4,-3}, {2,-4}, {4,-2}, {3,-3}, {2,-3}, {3,-2}, {1,-3},
+	 {3,-1}, {2,-2}, {1,-2}, {2,-1}, {1,-1}, {0,0}},
+	/* dir 2 */
+	{{4,-2}, {4,2}, {4,-1}, {4,1}, {4,0}, {3,-1}, {3,1}, {3,0}, {2,-1}, {2,1},
+	 {2,0}, {1,0}, {0,0}},
+	/* dir 3 */
+	{{4,4}, {4,3}, {3,4}, {4,2}, {2,4}, {3,3}, {3,2}, {2,3}, {3,1}, {1,3},
+	 {2,2}, {2,1}, {1,2}, {1,1}, {0,0}},
+	/* dir 4 */
+	{{-2,4}, {2,4}, {-1,4}, {1,4}, {0,4}, {-1,3}, {1,3}, {0,3}, {-1,2}, {1,2},
+	 {0,2}, {0,1}, {0,0}},
+	/* dir 5 */
+	{{-4,4}, {-4,3}, {-3,4}, {-4,2}, {-2,4}, {-3,3}, {-3,2}, {-2,3}, {-3,1},
+	 {-1,3}, {-2,2}, {-2,1}, {-1,2}, {-1,1}, {0,0}},
+	/* dir 6 */
+	{{-4,-2}, {-4,2}, {-4,-1}, {-4,1}, {-4,0}, {-3,-1}, {-3,1}, {-3,0}, {-2,-1},
+	 {-2,1}, {-2,0}, {-1,0}, {0,0}},
+	/* dir 7 */
+	{{-4,-4}, {-3,-4}, {-4,-3}, {-2,-4}, {-4,-2}, {-3,-3}, {-2,-3}, {-3,-2},
+	 {-1,-3}, {-3,-1}, {-2,-2}, {-1,-2}, {-2,-1}, {-1,-1}, {0,0}}
+};
+
+void upd_vis(struct level *lvl, struct player *p)
 {
-	int cx, cy;
+	int dir, idx;
+	int x, y;
+	struct cell *cptr;
+
+	pos_to_cell(lvl, p->x, p->y, &p->cx, &p->cy);
 
 	lvl->numvis = 0;
-
-	pos_to_cell(px, py, &cx, &cy);
-
-	/* TODO: cont. */
+	idx = -1;
+	dir = 0;	/* TODO use p->theta */
+	do {
+		idx++;
+		x = p->cx + visoffs[dir][idx].dx;
+		y = p->cy + visoffs[dir][idx].dy;
+		cptr = lvl->cells + y * lvl->width + x;
+		lvl->vis[lvl->numvis++] = cptr;
+	} while(visoffs[dir][idx].dx | visoffs[dir][idx].dy);
 }
 
-void cell_to_pos(int cx, int cy, int32_t *px, int32_t *py)
+void cell_to_pos(struct level *lvl, int cx, int cy, int32_t *px, int32_t *py)
 {
-	*px = cx * CELL_SIZE - (CELL_SIZE >> 1);
-	*py = cy * CELL_SIZE - (CELL_SIZE >> 1);
+	*px = (cx - lvl->orgx) * CELL_SIZE;
+	*py = (cy - lvl->orgy) * CELL_SIZE;
 }
 
-void pos_to_cell(int32_t px, int32_t py, int *cx, int *cy)
+void pos_to_cell(struct level *lvl, int32_t px, int32_t py, int *cx, int *cy)
 {
-	_Static_assert((CELL_SIZE & ~0xff) == CELL_SIZE,
-			"CELL_SIZE >> 8 in pos_to_cell will lose significant bits");
-
-	*cx = ((px + (CELL_SIZE >> 1)) << 8) / (CELL_SIZE >> 8);
-	*cy = ((py + (CELL_SIZE >> 1)) << 8) / (CELL_SIZE >> 8);
+	*cx = (px + (CELL_SIZE >> 1)) / CELL_SIZE + lvl->orgx;
+	*cy = (py + (CELL_SIZE >> 1)) / CELL_SIZE + lvl->orgy;
 }

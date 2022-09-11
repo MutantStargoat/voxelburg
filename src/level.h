@@ -38,6 +38,7 @@ struct cell {
 
 struct level {
 	int width, height;
+	int orgx, orgy;
 	unsigned int xmask;
 	struct cell *cells;
 
@@ -45,17 +46,18 @@ struct level {
 	struct item *items;
 
 	/* populated by calc_vis */
-	struct cell **vis;
+	struct cell *vis[128];
 	int numvis;
 };
 
+struct player;
 
 struct level *init_level(const char *descstr);
 void free_level(struct level *lvl);
 
-void upd_vis(struct level *lvl, int32_t px, int32_t py, int32_t angle);
+void upd_vis(struct level *lvl, struct player *p);
 
-void cell_to_pos(int cx, int cy, int32_t *px, int32_t *py);
-void pos_to_cell(int32_t px, int32_t py, int *cx, int *cy);
+void cell_to_pos(struct level *lvl, int cx, int cy, int32_t *px, int32_t *py);
+void pos_to_cell(struct level *lvl, int32_t px, int32_t py, int *cx, int *cy);
 
 #endif	/* LEVEL_H_ */

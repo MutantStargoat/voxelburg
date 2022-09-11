@@ -53,14 +53,14 @@ void gamescr(void)
 
 	REG_DISPCNT = 4 | DISPCNT_BG2 | DISPCNT_OBJ | DISPCNT_FB1;
 
-	vblperf_setcolor(0xff);
+	vblperf_setcolor(1);
 
 	lvl = init_level(testlvl);
 
 	xgl_init();
 
 	memset(&player, 0, sizeof player);
-	player.y = 0x60000;
+	player.phi = 0x100;
 
 	select_input(BN_DPAD | BN_A | BN_B);
 
@@ -94,17 +94,30 @@ static void update(void)
 
 	player_input(&player, bnstate);
 
-	upd_vis(lvl, player.x, player.y, player.theta);
+	upd_vis(lvl, &player);
 }
 
 static void draw(void)
 {
+	int i, x, y;
+	struct cell *cell;
+
 	xgl_load_identity();
 	xgl_rotate_x(player.phi);
 	xgl_rotate_y(player.theta);
 	xgl_translate(player.x, 0, player.y);
 
-	xgl_draw(XGL_QUADS, tm_floor, sizeof tm_floor / sizeof *tm_floor);
+	for(i=0; i<lvl->numvis; i++) {
+		cell = lvl->vis[i];
+
+		x = (int32_t)(cell->x - player.cx) << 17;
+		y = -(int32_t)(cell->y - player.cy) << 17;
+
+		xgl_push_matrix();
+		xgl_translate(x, 0, y);
+		xgl_draw(XGL_QUADS, tm_floor, sizeof tm_floor / sizeof *tm_floor);
+		xgl_pop_matrix();
+	}
 }
 
 __attribute__((noinline, target("arm"), section(".iwram")))

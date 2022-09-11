@@ -21,9 +21,9 @@ void player_input(struct player *p, uint16_t bnstate)
 		if(p->theta < X_2PI) p->theta += X_2PI;
 	}
 	if(bnstate & KEY_A) {
-		p->y += 0x1000;
+		p->y += 0x2000;
 	}
 	if(bnstate & KEY_B) {
-		p->y -= 0x1000;
+		p->y -= 0x2000;
 	}
 }
