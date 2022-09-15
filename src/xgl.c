@@ -29,6 +29,8 @@ static int mtop;
 static unsigned int opt;
 static int32_t ldir[3];
 
+static int cur_cidx;
+
 static void draw_ptlines(int prim, const struct xvertex *varr, int vcount);
 
 
@@ -175,6 +177,11 @@ void xgl_scale(int32_t x, int32_t y, int32_t z)
 	xgl_mult_matrix(m);
 }
 
+void xgl_index(int cidx)
+{
+	cur_cidx = cidx;
+}
+
 static void xform(struct xvertex *out, const struct xvertex *in, const int32_t *m)
 {
 	out->x = XMUL(m[0], in->x) + XMUL(m[4], in->y) + XMUL(m[8], in->z) + m[12];
@@ -207,7 +214,7 @@ void xgl_draw(int prim, const struct xvertex *varr, int vcount)
 	}
 
 	while(vcount >= prim) {
-		cidx = 0xff;//varr->cidx;
+		cidx = cur_cidx;//varr->cidx;
 
 		xform(xv, varr, mat[mtop]);
 		xform_norm(xv, varr, mat[mtop]);

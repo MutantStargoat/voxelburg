@@ -49,7 +49,9 @@ static struct player player;
 
 void gamescr(void)
 {
+	int i;
 	unsigned char *fb;
+	uint16_t *cmap;
 
 	REG_DISPCNT = 4 | DISPCNT_BG2 | DISPCNT_OBJ | DISPCNT_FB1;
 
@@ -61,6 +63,14 @@ void gamescr(void)
 
 	memset(&player, 0, sizeof player);
 	player.phi = 0x100;
+
+	cmap = (uint16_t*)CRAM_BG_ADDR;
+	*cmap++ = 0;
+	for(i=1; i<255; i++) {
+		*cmap++ = rand();
+	}
+	*cmap = 0xffff;
+
 
 	select_input(BN_DPAD | BN_A | BN_B);
 
@@ -115,6 +125,7 @@ static void draw(void)
 
 		xgl_push_matrix();
 		xgl_translate(x, 0, y);
+		xgl_index(i + 1);
 		xgl_draw(XGL_QUADS, tm_floor, sizeof tm_floor / sizeof *tm_floor);
 		xgl_pop_matrix();
 	}

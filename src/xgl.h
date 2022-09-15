@@ -66,6 +66,8 @@ void xgl_scale(int32_t x, int32_t y, int32_t z);
 void xgl_draw(int prim, const struct xvertex *varr, int vcount);
 void xgl_transform(const struct xvertex *vin, int *x, int *y);
 
+void xgl_index(int c);
+
 void xgl_xyzzy(void);
 
 int xgl_clip_near(struct xvertex *vout, int *voutnum, struct xvertex *vin, int vnum);
