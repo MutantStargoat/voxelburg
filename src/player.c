@@ -14,11 +14,11 @@ void player_input(struct player *p, uint16_t bnstate)
 	}
 	if(bnstate & KEY_LEFT) {
 		p->theta += 0x800;
-		if(p->theta > X_2PI) p->theta -= X_2PI;
+		if(p->theta >= X_2PI) p->theta -= X_2PI;
 	}
 	if(bnstate & KEY_RIGHT) {
 		p->theta -= 0x800;
-		if(p->theta < X_2PI) p->theta += X_2PI;
+		if(p->theta < 0) p->theta += X_2PI;
 	}
 	if(bnstate & KEY_A) {
 		p->y += 0x2000;

@@ -4,7 +4,7 @@
 
 #define NUM_DIRS	8
 #define MAX_DIST	4
-#define FOV			60
+#define FOV			92
 
 struct cell {
 	int dx, dy;

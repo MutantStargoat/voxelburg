@@ -113,6 +113,7 @@ static void draw(void)
 	struct cell *cell;
 
 	xgl_load_identity();
+	xgl_translate(0, 0, 0x100000);
 	xgl_rotate_x(player.phi);
 	xgl_rotate_y(player.theta);
 	xgl_translate(player.x, 0, player.y);
