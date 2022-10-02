@@ -125,10 +125,9 @@ void upd_vis(struct level *lvl, struct player *p)
 
 	lvl->numvis = 0;
 	idx = -1;
-	theta = p->theta + X_2PI / 16;
+	theta = X_2PI - p->theta + X_2PI / 16;
 	if(theta >= X_2PI) theta -= X_2PI;
-	dir = 7 - (theta << 3) / X_2PI;	/* p->theta is always [0, 2pi) */
-	dbg_drawstr(0, 0, "dir: %d", dir);
+	dir = (theta << 3) / X_2PI;	/* p->theta is always [0, 2pi) */
 	if(dir < 0 || dir >= 8) {
 		panic(get_pc(), "dir: %d\ntheta: %d.%d (%d)\n", dir, p->theta >> 16,
 				p->theta & 0xffff, p->theta);

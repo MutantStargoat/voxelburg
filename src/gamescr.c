@@ -21,18 +21,26 @@ static int nframes, num_vbl, backbuf;
 static uint16_t *vram[] = { (uint16_t*)VRAM_LFB_FB0_ADDR, (uint16_t*)VRAM_LFB_FB1_ADDR };
 
 static const char *testlvl =
-	"########\n"
-	"###   s#\n"
-	"### ####\n"
-	"###    #\n"
-	"##     #\n"
-	"##     #\n"
-	"##     #\n"
-	"## ### #\n"
-	"## ### #\n"
-	"##     #\n"
-	"#### ###\n"
-	"########\n";
+	"################\n"
+	"################\n"
+	"################\n"
+	"################\n"
+	"################\n"
+	"#######   s#####\n"
+	"####### ########\n"
+	"#######    #####\n"
+	"######     #####\n"
+	"######     #####\n"
+	"######     #####\n"
+	"###### ### #####\n"
+	"###### ### #####\n"
+	"######     #####\n"
+	"######## #######\n"
+	"################\n"
+	"################\n"
+	"################\n"
+	"################\n"
+	"################\n";
 
 static struct xvertex tm_floor[] __attribute__((section(".rodata"))) = {
 	{0x10000, -0x10000, 0x10000,	0, 0x10000, 0,	210},
@@ -113,7 +121,7 @@ static void draw(void)
 	struct cell *cell;
 
 	xgl_load_identity();
-	xgl_translate(0, 0, 0x100000);
+	/*xgl_translate(0, 0, 0x100000);*/
 	xgl_rotate_x(player.phi);
 	xgl_rotate_y(player.theta);
 	xgl_translate(player.x, 0, player.y);
