@@ -7,6 +7,7 @@
 #include "intr.h"
 #include "input.h"
 #include "player.h"
+#include "gba.h"
 #include "sprite.h"
 #include "debug.h"
 #include "level.h"
@@ -15,10 +16,12 @@
 
 static void update(void);
 static void draw(void);
+#ifdef BUILD_GBA
 static void vblank(void);
+#endif
 
 static int nframes, num_vbl, backbuf;
-static uint16_t *vram[] = { (uint16_t*)VRAM_LFB_FB0_ADDR, (uint16_t*)VRAM_LFB_FB1_ADDR };
+static uint16_t *vram[] = { gba_vram_lfb0, gba_vram_lfb1 };
 
 static const char *testlvl =
 	"################\n"
@@ -61,7 +64,7 @@ void gamescr(void)
 	unsigned char *fb;
 	uint16_t *cmap;
 
-	REG_DISPCNT = 4 | DISPCNT_BG2 | DISPCNT_OBJ | DISPCNT_FB1;
+	gba_setmode(4, DISPCNT_BG2 | DISPCNT_OBJ | DISPCNT_FB1);
 
 	vblperf_setcolor(1);
 
@@ -72,7 +75,7 @@ void gamescr(void)
 	init_player(&player, lvl);
 	player.phi = 0x100;
 
-	cmap = (uint16_t*)CRAM_BG_ADDR;
+	cmap = gba_bgpal;
 	*cmap++ = 0;
 	for(i=1; i<255; i++) {
 		*cmap++ = rand();
@@ -82,9 +85,12 @@ void gamescr(void)
 
 	select_input(BN_DPAD | BN_A | BN_B);
 
+	/* TODO emulate interrupts on non-GBA builds */
+#ifdef BUILD_GBA
 	mask(INTR_VBLANK);
 	screen_vblank = vblank;
 	unmask(INTR_VBLANK);
+#endif
 
 	nframes = 0;
 	for(;;) {
@@ -140,8 +146,10 @@ static void draw(void)
 	}
 }
 
+#ifdef BUILD_GBA
 __attribute__((noinline, target("arm"), section(".iwram")))
 static void vblank(void)
 {
 	num_vbl++;
 }
+#endif

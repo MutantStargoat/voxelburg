@@ -1,7 +1,7 @@
 src = $(wildcard src/*.c) $(wildcard src/gba/*.c)
 ssrc = $(wildcard src/gba/*.s) data/lut.s
-obj = $(src:.c=.o) $(ssrc:.s=.o)
-dep = $(src:.c=.d)
+obj = $(src:.c=.arm.o) $(ssrc:.s=.arm.o)
+dep = $(src:.c=.arm.d)
 name = gbajam22
 elf = $(name).elf
 bin = $(name).gba
@@ -39,6 +39,12 @@ $(elf): $(obj) $(libs)
 	$(CC) -o $(elf) $(obj) -specs=gba.specs -Wl,-Map,link.map $(LDFLAGS)
 
 -include $(dep)
+
+%.arm.o: %.c
+	$(CC) -o $@ $(CFLAGS) -c $<
+
+%.arm.o: %.s
+	$(AS) -o $@ $(ASFLAGS) $<
 
 src/data.o: src/data.s $(data)
 

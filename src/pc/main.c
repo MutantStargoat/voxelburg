@@ -4,6 +4,7 @@
 #include <assert.h>
 #include "miniglut.h"
 #include "game.h"
+#include "gba.h"
 
 static void display(void);
 static void idle(void);
@@ -177,11 +178,6 @@ static void keydown(unsigned char key, int x, int y)
 {
 	modkeys = glutGetModifiers();
 
-	if((key == '\n' || key == '\r') && (modkeys & GLUT_ACTIVE_ALT)) {
-		opt.fullscreen ^= 1;
-		set_fullscreen(opt.fullscreen);
-		return;
-	}
 	keystate[key] = 1;
 	//game_key(key, 1);
 }
