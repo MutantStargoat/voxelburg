@@ -1,6 +1,17 @@
+#include <string.h>
 #include "player.h"
+#include "level.h"
 #include "gbaregs.h"
 #include "xgl.h"
+
+void init_player(struct player *p, struct level *lvl)
+{
+	memset(p, 0, sizeof *p);
+	p->cx = lvl->orgx;
+	p->cy = lvl->orgy;
+	cell_to_pos(lvl, lvl->orgx, lvl->orgy, &p->x, &p->y);
+	p->cell = level_cell(lvl, lvl->orgx, lvl->orgy);
+}
 
 void player_input(struct player *p, uint16_t bnstate)
 {

@@ -8,6 +8,7 @@ cfg.mk
 pngdump
 mmutil
 lutgen
+vistab
 *.ppm
 *.png
 *.sav

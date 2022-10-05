@@ -40,6 +40,7 @@ struct level {
 	int width, height;
 	int orgx, orgy;
 	unsigned int xmask;
+	int xshift;
 	struct cell *cells;
 
 	struct mob *mobs;
@@ -54,6 +55,8 @@ struct player;
 
 struct level *init_level(const char *descstr);
 void free_level(struct level *lvl);
+
+struct cell *level_cell(struct level *lvl, int cx, int cy);
 
 void upd_vis(struct level *lvl, struct player *p);
 

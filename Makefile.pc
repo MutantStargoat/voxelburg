@@ -1,0 +1,61 @@
+src = $(wildcard src/*.c) $(wildcard src/pc/*.c)
+ssrc = data/lut.s
+obj = $(src:.c=.o) $(ssrc:.s=.o)
+dep = $(src:.c=.d)
+bin = gbajam22
+
+opt = -O0 -fno-strict-aliasing
+dbg = -g
+inc = -I. -Isrc -Isrc/gba
+warn = -pedantic -Wall
+
+CFLAGS = $(opt) $(dbg) $(warn) -MMD $(def) $(inc)
+LDFLAGS = $(libs) -lm
+
+-include cfg.mk
+
+sys = $(shell uname -s | sed 's/MINGW.*/mingw/')
+ifeq ($(sys), mingw)
+	libs = -lopengl32 -lwinmm
+else
+	libs = -lGL
+endif
+
+
+$(bin): $(obj)
+	$(CC) -o $@ $(obj) $(LDFLAGS)
+
+-include $(dep)
+
+src/data.o: src/data.s $(data)
+
+tools/pngdump/pngdump:
+	$(MAKE) -C tools/pngdump
+
+tools/lutgen: tools/lutgen.c
+	$(CC) -o $@ $< -lm
+
+tools/vistab: tools/vistab.c
+	$(CC) -o $@ $< -lm
+
+%.sraw: %.png tools/pngdump/pngdump
+	tools/pngdump/pngdump -o $@ -oc $(subst .sraw,.spal,$@) -os $(subst .sraw,.shade,$@) -s 8 $<
+
+%.raw: %.png tools/pngdump/pngdump
+	tools/pngdump/pngdump -o $@ -n $<
+
+%.pal: %.png tools/pngdump/pngdump
+	tools/pngdump/pngdump -o $@ -c $<
+
+data/lut.s: tools/lutgen
+	tools/lutgen >$@
+
+.PHONY: clean
+clean:
+	rm -f $(obj) $(bin)
+
+.PHONY: cleandep
+cleandep:
+	rm -f $(dep)
+
+# vi:ft=make:

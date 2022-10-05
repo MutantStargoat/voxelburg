@@ -1,5 +1,5 @@
-src = $(wildcard src/*.c)
-ssrc = $(wildcard src/*.s) data/lut.s
+src = $(wildcard src/*.c) $(wildcard src/gba/*.c)
+ssrc = $(wildcard src/gba/*.s) data/lut.s
 obj = $(src:.c=.o) $(ssrc:.s=.o)
 dep = $(src:.c=.d)
 name = gbajam22
@@ -16,11 +16,13 @@ AS = $(TCPREFIX)as
 OBJCOPY = $(TCPREFIX)objcopy
 OBJDUMP = $(TCPREFIX)objdump
 
+def = -DBUILD_GBA
 opt = -O0 -fomit-frame-pointer -mcpu=arm7tdmi -mtune=arm7tdmi -mthumb -mthumb-interwork
 dbg = -g
-inc = -I. -Ilibs/maxmod
+inc = -I. -Isrc -Isrc/gba -Ilibs/maxmod
+warn = -pedantic -Wall
 
-CFLAGS = $(opt) $(dbg) -pedantic -Wall -MMD $(def) $(inc)
+CFLAGS = $(opt) $(dbg) $(warn) -MMD $(def) $(inc)
 ASFLAGS = -mthumb-interwork
 LDFLAGS = -mthumb -mthumb-interwork $(libs) -lm
 

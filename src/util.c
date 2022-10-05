@@ -3,7 +3,13 @@
 #include "util.h"
 #include "debug.h"
 
+#ifdef BUILD_GBA
 extern char __iheap_start;
+#else
+#define IWRAM_POOL_SZ	32768
+#define __iheap_start	iwram[0]
+static char iwram[IWRAM_POOL_SZ];
+#endif
 static char *top = &__iheap_start;
 
 int iwram_brk(void *addr)

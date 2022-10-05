@@ -69,7 +69,7 @@ void gamescr(void)
 
 	xgl_init();
 
-	memset(&player, 0, sizeof player);
+	init_player(&player, lvl);
 	player.phi = 0x100;
 
 	cmap = (uint16_t*)CRAM_BG_ADDR;

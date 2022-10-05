@@ -7,7 +7,7 @@
 struct level *init_level(const char *descstr)
 {
 	const char *str, *line;
-	int i, j, ncols = 0, nrows = 0;
+	int i, j, x, ncols = 0, nrows = 0;
 	struct level *lvl;
 	struct cell *cell;
 
@@ -41,6 +41,13 @@ struct level *init_level(const char *descstr)
 	lvl->mobs = 0;
 	lvl->items = 0;
 
+	lvl->xshift = 0;
+	x = ncols - 1;
+	while(x) {
+		x >>= 1;
+		lvl->xshift++;
+	}
+
 	str = descstr;
 	cell = lvl->cells;
 
@@ -52,6 +59,12 @@ struct level *init_level(const char *descstr)
 				cell->type = CELL_SOLID;
 			} else {
 				cell->type = CELL_WALK;
+				switch(*str) {
+				case 's':
+					lvl->orgx = j;
+					lvl->orgy = i;
+					break;
+				}
 			}
 			cell++;
 			while(*++str == '\n') str++;
@@ -79,6 +92,12 @@ void free_level(struct level *lvl)
 	}
 }
 
+struct cell *level_cell(struct level *lvl, int cx, int cy)
+{
+	return lvl->cells + (cy << lvl->xshift) + cx;
+}
+
+/* generated with tools/vistab */
 struct {int dx, dy;} visoffs[8][32] = {
 	/* dir 0 */
 	{{-4,-4}, {4,-4}, {-3,-4}, {3,-4}, {-2,-4}, {2,-4}, {-3,-3}, {3,-3}, {-1,-4},
@@ -137,7 +156,9 @@ void upd_vis(struct level *lvl, struct player *p)
 		x = p->cx + visoffs[dir][idx].dx;
 		y = p->cy + visoffs[dir][idx].dy;
 		cptr = lvl->cells + y * lvl->width + x;
-		lvl->vis[lvl->numvis++] = cptr;
+		if(cptr->type != CELL_SOLID) {
+			lvl->vis[lvl->numvis++] = cptr;
+		}
 	} while(visoffs[dir][idx].dx | visoffs[dir][idx].dy);
 }
 
