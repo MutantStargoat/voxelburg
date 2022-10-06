@@ -14,11 +14,21 @@
 #include "xgl.h"
 #include "polyfill.h"
 
+static int gamescr_start(void);
+static void gamescr_stop(void);
+static void gamescr_frame(void);
+static void gamescr_vblank(void);
+
 static void update(void);
 static void draw(void);
-#ifdef BUILD_GBA
-static void vblank(void);
-#endif
+
+static struct screen gamescr = {
+	"game",
+	gamescr_start,
+	gamescr_stop,
+	gamescr_frame,
+	gamescr_vblank
+};
 
 static int nframes, num_vbl, backbuf;
 static uint16_t *vram[] = { gba_vram_lfb0, gba_vram_lfb1 };
@@ -58,10 +68,14 @@ static struct level *lvl;
 static struct player player;
 
 
-void gamescr(void)
+struct screen *init_game_screen(void)
+{
+	return &gamescr;
+}
+
+static int gamescr_start(void)
 {
 	int i;
-	unsigned char *fb;
 	uint16_t *cmap;
 
 	gba_setmode(4, DISPCNT_BG2 | DISPCNT_OBJ | DISPCNT_FB1);
@@ -85,29 +99,31 @@ void gamescr(void)
 
 	select_input(BN_DPAD | BN_A | BN_B);
 
-	/* TODO emulate interrupts on non-GBA builds */
-#ifdef BUILD_GBA
-	mask(INTR_VBLANK);
-	screen_vblank = vblank;
-	unmask(INTR_VBLANK);
-#endif
-
 	nframes = 0;
-	for(;;) {
-		backbuf = ++nframes & 1;
-		fb = (unsigned char*)vram[backbuf];
+	return 0;
+}
 
-		polyfill_framebuffer(fb, 240, 160);
-		fillblock_16byte(fb, 0, 240 * 160 / 16);
+static void gamescr_stop(void)
+{
+}
 
-		update();
-		draw();
+static void gamescr_frame(void)
+{
+	unsigned char *fb;
 
-		vblperf_end();
-		wait_vblank();
-		present(backbuf);
-		vblperf_begin();
-	}
+	backbuf = ++nframes & 1;
+	fb = (unsigned char*)vram[backbuf];
+
+	polyfill_framebuffer(fb, 240, 160);
+	fillblock_16byte(fb, 0, 240 * 160 / 16);
+
+	update();
+	draw();
+
+	vblperf_end();
+	wait_vblank();
+	present(backbuf);
+	vblperf_begin();
 }
 
 static void update(void)
@@ -148,8 +164,8 @@ static void draw(void)
 
 #ifdef BUILD_GBA
 __attribute__((noinline, target("arm"), section(".iwram")))
-static void vblank(void)
+#endif
+static void gamescr_vblank(void)
 {
 	num_vbl++;
 }
-#endif

@@ -3,14 +3,15 @@
 
 #include <stdint.h>
 #include "gbaregs.h"
+#include "intr.h"
 
 #ifdef BUILD_GBA
-#define gba_bgpal	(uint16_t*)CRAM_BG_ADDR
-#define gba_objpal	(uint16_t*)CRAM_OBJ_ADDR
+#define gba_bgpal	((uint16_t*)CRAM_BG_ADDR)
+#define gba_objpal	((uint16_t*)CRAM_OBJ_ADDR)
 
-#define gba_vram	(uint16_t*)VRAM_START_ADDR
-#define gba_vram_lfb0	(uint16_t*)VRAM_LFB_FB0_ADDR
-#define gba_vram_lfb1	(uint16_t*)VRAM_LFB_FB1_ADDR
+#define gba_vram		((uint16_t*)VRAM_START_ADDR)
+#define gba_vram_lfb0	((uint16_t*)VRAM_LFB_FB0_ADDR)
+#define gba_vram_lfb1	((uint16_t*)VRAM_LFB_FB1_ADDR)
 
 #else
 extern uint16_t gba_bgpal[256], gba_objpal[256];

@@ -5,8 +5,11 @@
 #include "miniglut.h"
 #include "game.h"
 #include "gba.h"
+#include "input.h"
+#include "debug.h"
 
 static void display(void);
+static void vblank(void);
 static void idle(void);
 static void reshape(int x, int y);
 static void keydown(unsigned char key, int x, int y);
@@ -23,6 +26,8 @@ static unsigned char keystate[256];
 
 static unsigned long start_time;
 static unsigned int modkeys;
+
+static uint16_t bnstate, bnmask;
 
 static float win_aspect;
 static unsigned int tex;
@@ -89,26 +94,61 @@ int main(int argc, char **argv)
 	glLoadIdentity();
 	glScalef(240.0f / tex_xsz, 160.0f / tex_ysz, 1);
 
-	gamescr();
+	intr_disable();
+	interrupt(INTR_VBLANK, vblank);
+	unmask(INTR_VBLANK);
+	intr_enable();
+
+	if(init_screens() == -1) {
+		fprintf(stderr, "failed to initialize screens");
+		return 1;
+	}
+
+	if(change_screen(find_screen("game")) == -1) {
+		fprintf(stderr, "failed to find game screen");
+		return 1;
+	}
+
+	glutMainLoop();
 	return 0;
 }
 
-void blit_frame(void *pixels, int vsync)
+void select_input(uint16_t bmask)
 {
-	int i, npix = fb_width * fb_height;
+	bnstate = 0;
+	bnmask = bmask;
+}
+
+uint16_t get_input(void)
+{
+	uint16_t s = bnstate;
+	bnstate = 0;
+	return s;
+}
+
+#define PACK_RGB32(r, g, b) \
+	((((r) & 0xff) << 16) | (((g) & 0xff) << 8) | ((b) & 0xff) | 0xff000000)
+
+#define UNPACK_R16(c)	(((c) >> 9) & 0xf8)
+#define UNPACK_G16(c)	(((c) >> 3) & 0xf8)
+#define UNPACK_B16(c)	(((c) << 3) & 0xf8)
+
+void present(int buf)
+{
+	int i, npix = 240 * 160;
 	uint32_t *dptr = convbuf;
-	uint16_t *sptr = pixels;
+	uint8_t *sptr = buf ? gba_vram_lfb1 : gba_vram_lfb0;
 
 	for(i=0; i<npix; i++) {
-		int r = UNPACK_R16(*sptr);
-		int g = UNPACK_G16(*sptr);
-		int b = UNPACK_B16(*sptr);
+		int idx = *sptr++;
+		int r = UNPACK_R16(gba_bgpal[idx]);
+		int g = UNPACK_G16(gba_bgpal[idx]);
+		int b = UNPACK_B16(gba_bgpal[idx]);
 		*dptr++ = PACK_RGB32(b, g, r);
-		sptr++;
 	}
 
 	glBindTexture(GL_TEXTURE_2D, tex);
-	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, fb_width, fb_height, GL_RGBA,
+	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 240, 160, GL_RGBA,
 			GL_UNSIGNED_BYTE, convbuf);
 
 	glMatrixMode(GL_MODELVIEW);
@@ -136,31 +176,20 @@ void blit_frame(void *pixels, int vsync)
 	assert(glGetError() == GL_NO_ERROR);
 }
 
-int kb_isdown(int key)
-{
-	switch(key) {
-	case KB_ANY:
-		return num_pressed;
-
-	case KB_ALT:
-		return keystate[KB_LALT] + keystate[KB_RALT];
-
-	case KB_CTRL:
-		return keystate[KB_LCTRL] + keystate[KB_RCTRL];
-	}
-
-	if(isalpha(key)) {
-		key = tolower(key);
-	}
-	return keystate[key];
-}
-
 static void display(void)
 {
-	inp_update();
+	if(curscr) {
+		curscr->frame();
+	}
+}
 
-	time_msec = get_msec();
-	draw();
+static void vblank(void)
+{
+	vblperf_count++;
+
+	if(curscr && curscr->vblank) {
+		curscr->vblank();
+	}
 }
 
 static void idle(void)
@@ -174,62 +203,70 @@ static void reshape(int x, int y)
 	glViewport(0, 0, x, y);
 }
 
+static int bnmap(int key)
+{
+	switch(key) {
+	case GLUT_KEY_LEFT:
+		return BN_LEFT;
+	case GLUT_KEY_RIGHT:
+		return BN_RIGHT;
+	case GLUT_KEY_UP:
+		return BN_UP;
+	case GLUT_KEY_DOWN:
+		return BN_DOWN;
+	case 'x':
+		return BN_A;
+	case 'z':
+		return BN_B;
+	case 'a':
+		return BN_LT;
+		break;
+	case 's':
+		return BN_RT;
+	case ' ':
+		return BN_SELECT;
+	case '\n':
+		return BN_START;
+	default:
+		break;
+	}
+	return -1;
+}
+
 static void keydown(unsigned char key, int x, int y)
 {
-	modkeys = glutGetModifiers();
+	int bn = bnmap(key);
+	if(bn != -1) {
+		bnstate |= bn;
+	}
 
-	keystate[key] = 1;
-	//game_key(key, 1);
+	if(key == 27) {
+		exit(0);
+	}
 }
 
 static void keyup(unsigned char key, int x, int y)
 {
-	keystate[key] = 0;
-	//game_key(key, 0);
+	int bn = bnmap(key);
+	if(bn != -1) {
+		bnstate &= ~bn;
+	}
 }
 
 static void skeydown(int key, int x, int y)
 {
-	key = translate_special(key);
-	keystate[key] = 1;
-	//game_key(key, 1);
+	int bn = bnmap(key);
+	if(bn != -1) {
+		bnstate |= bn;
+	}
 }
 
 static void skeyup(int key, int x, int y)
 {
-	key = translate_special(key);
-	keystate[key] = 0;
-	//game_key(key, 0);
-}
-
-static int translate_special(int skey)
-{
-	switch(skey) {
-	case 127:
-		return 127;
-/*	case GLUT_KEY_LEFT:
-		return KB_LEFT;
-	case GLUT_KEY_RIGHT:
-		return KB_RIGHT;
-	case GLUT_KEY_UP:
-		return KB_UP;
-	case GLUT_KEY_DOWN:
-		return KB_DOWN;
-	case GLUT_KEY_PAGE_UP:
-		return KB_PGUP;
-	case GLUT_KEY_PAGE_DOWN:
-		return KB_PGDN;
-	case GLUT_KEY_HOME:
-		return KB_HOME;
-	case GLUT_KEY_END:
-		return KB_END;
-	default:
-		if(skey >= GLUT_KEY_F1 && skey <= GLUT_KEY_F12) {
-			return KB_F1 + skey - GLUT_KEY_F1;
-		}
-		*/
+	int bn = bnmap(key);
+	if(bn != -1) {
+		bnstate &= ~bn;
 	}
-	return 0;
 }
 
 static unsigned int next_pow2(unsigned int x)

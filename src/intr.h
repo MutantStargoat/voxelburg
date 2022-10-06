@@ -23,17 +23,29 @@ enum {
 
 void intr_init(void);
 
+/* set an interrupt handler */
+void interrupt(int intr, void (*handler)(void));
+
+#ifdef BUILD_GBA
+
 /* set/clear interrupts */
 #define intr_enable()	\
 	do { REG_IME |= 0x0001; } while(0)
 #define intr_disable()	\
 	do { REG_IME &= 0xfffe; } while(0)
 
-/* set an interrupt handler */
-void interrupt(int intr, void (*handler)(void));
-
 /* mask/unmask an interrupt */
 #define mask(intr)		do {REG_IE &= ~(1 << (intr));} while(0)
 #define unmask(intr)	do {REG_IE |= 1 << (intr);} while(0)
+
+#else	/* non-GBA build */
+
+void intr_enable(void);
+void intr_disable(void);
+
+void mask(int intr);
+void unmask(int intr);
+
+#endif
 
 #endif	/* INTR_H_ */

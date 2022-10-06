@@ -4,7 +4,7 @@ obj = $(src:.c=.o) $(ssrc:.s=.o)
 dep = $(src:.c=.d)
 bin = gbajam22
 
-opt = -O0 -fno-strict-aliasing
+opt = -O0 -fno-strict-aliasing -fcommon
 dbg = -g
 inc = -I. -Isrc -Isrc/gba
 warn = -pedantic -Wall
@@ -18,7 +18,7 @@ sys = $(shell uname -s | sed 's/MINGW.*/mingw/')
 ifeq ($(sys), mingw)
 	libs = -lopengl32 -lwinmm
 else
-	libs = -lGL
+	libs = -lGL -lX11 -lXext
 endif
 
 

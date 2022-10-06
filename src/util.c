@@ -82,3 +82,31 @@ char *strdup_nf_impl(const char *s, const char *file, int line)
 	memcpy(res, s, len + 1);
 	return res;
 }
+
+#ifndef BUILD_GBA
+/* utility functions which are implemented in assembly on GBA builds */
+
+void fillblock_16byte(void *dest, uint32_t val, int count)
+{
+	int i;
+	uint32_t *p = dest;
+
+	for(i=0; i<count; i++) {
+		p[0] = val;
+		p[1] = val;
+		p[2] = val;
+		p[3] = val;
+		p += 4;
+	}
+}
+
+void *get_pc(void)
+{
+	return 0;	/* not useful on PC builds */
+}
+
+void *get_sp(void)
+{
+	return 0;	/* not useful on PC builds */
+}
+#endif

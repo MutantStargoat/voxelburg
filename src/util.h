@@ -3,6 +3,9 @@
 
 #include <stdlib.h>
 #include <stdint.h>
+#include "gba.h"
+
+#ifdef BUILD_GBA
 
 #define wait_vblank() \
 	do { \
@@ -15,11 +18,14 @@
 		REG_DISPCNT = DISPCNT_BG2 | DISPCNT_OBJ | 4 | ((x) << 4); \
 	} while(0)
 
+#else	/* non-GBA build */
+#define wait_vblank()
+
+void present(int buf);		/* defined in src/pc/main.c */
+#endif
 
 #define set_bg_color(idx, r, g, b) \
-	do { \
-		((uint16_t*)CRAM_BG_ADDR)[idx] = (uint16_t)(r) | ((uint16_t)(g) << 5) | ((uint16_t)(b) << 10); \
-	} while(0)
+	gba_bgpal[idx] = (uint16_t)(r) | ((uint16_t)(g) << 5) | ((uint16_t)(b) << 10)
 
 extern int16_t sinlut[];
 

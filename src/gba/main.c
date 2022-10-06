@@ -6,7 +6,6 @@
 #include "maxmod.h"
 
 static void vblank(void);
-static void nopfunc(void);
 
 int main(void)
 {
@@ -28,17 +27,24 @@ int main(void)
 	mmStart(MOD_POPCORN, MM_PLAY_LOOP);
 #endif
 
-	screen_vblank = nopfunc;
-
 	intr_disable();
 	interrupt(INTR_VBLANK, vblank);
 	REG_DISPSTAT |= DISPSTAT_IEN_VBLANK;
 	unmask(INTR_VBLANK);
 
 	intr_enable();
-	gamescr();
 
-	for(;;);
+	if(init_screens() == -1) {
+		panic(get_pc(), "failed to initialize screens");
+	}
+
+	if(change_screen(find_screen("game")) == -1) {
+		panic(get_pc(), "failed to find game screen");
+	}
+
+	for(;;) {
+		curscr->frame();
+	}
 	return 0;
 }
 
@@ -46,14 +52,12 @@ static void vblank(void)
 {
 	vblperf_count++;
 
-	screen_vblank();
+	if(curscr && curscr->vblank) {
+		curscr->vblank();
+	}
 
 #ifndef NOSOUND
 	mmVBlank();
 	mmFrame();
 #endif
-}
-
-static void nopfunc(void)
-{
 }

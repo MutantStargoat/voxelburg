@@ -1,10 +1,12 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 #include <stdarg.h>
 #include "gbaregs.h"
 #include "intr.h"
 #include "debug.h"
+#include "gba.h"
 #include "util.h"
 
 uint16_t vblperf_color[] = {
@@ -15,9 +17,11 @@ uint16_t vblperf_color[] = {
 
 void vblperf_setcolor(int palidx)
 {
-	vblperf_palptr = (uint16_t*)CRAM_BG_ADDR + palidx;
+	vblperf_palptr = gba_bgpal + palidx;
 }
 
+
+#ifdef BUILD_GBA
 
 uint32_t panic_regs[16];
 void get_panic_regs(void);
@@ -62,6 +66,23 @@ void panic(void *pc, const char *fmt, ...)
 
 	for(;;);
 }
+
+#else	/* non-GBA build */
+
+void panic(void *pc, const char *fmt, ...)
+{
+	va_list ap;
+
+	fputs("~~~ PANIC ~~~\n", stderr);
+	va_start(ap, fmt);
+	vfprintf(stderr, fmt, ap);
+	va_end(ap);
+	fputc('\n', stderr);
+
+	abort();
+}
+
+#endif
 
 void dbg_drawglyph(int x, int y, int c)
 {
@@ -130,6 +151,8 @@ int dbg_drawstr(int x, int y, const char *fmt, ...)
 	return res;
 }
 
+#ifdef BUILD_GBA
+
 #ifdef EMUBUILD
 #define REG_DBG_ENABLE	REG16(0xfff780)
 #define REG_DBG_FLAGS	REG16(0xfff700)
@@ -170,4 +193,18 @@ void emuprint(const char *fmt, ...)
 void emuprint(const char *fmt, ...)
 {
 }
+#endif
+
+#else	/* non-GBA build */
+
+void emuprint(const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	vfprintf(stdout, fmt, ap);
+	va_end(ap);
+	fputc('\n', stdout);
+}
+
 #endif
