@@ -16,7 +16,8 @@ static void keydown(unsigned char key, int x, int y);
 static void keyup(unsigned char key, int x, int y);
 static void skeydown(int key, int x, int y);
 static void skeyup(int key, int x, int y);
-static int translate_special(int skey);
+static void mouse(int bn, int st, int x, int y);
+static void motion(int x, int y);
 static unsigned int next_pow2(unsigned int x);
 static void set_fullscreen(int fs);
 static void set_vsync(int vsync);
@@ -51,7 +52,7 @@ static PROC wgl_swap_interval_ext;
 int main(int argc, char **argv)
 {
 	glutInit(&argc, argv);
-	glutInitWindowSize(800, 600);
+	glutInitWindowSize(960, 640);
 	glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE);
 	glutCreateWindow("GBAjam22 PC build");
 
@@ -62,8 +63,8 @@ int main(int argc, char **argv)
 	glutKeyboardUpFunc(keyup);
 	glutSpecialFunc(skeydown);
 	glutSpecialUpFunc(skeyup);
-
-	glutSetCursor(GLUT_CURSOR_NONE);
+	glutMouseFunc(mouse);
+	glutMotionFunc(motion);
 
 	glEnable(GL_TEXTURE_2D);
 	glEnable(GL_CULL_FACE);
@@ -266,6 +267,42 @@ static void skeyup(int key, int x, int y)
 	int bn = bnmap(key);
 	if(bn != -1) {
 		bnstate &= ~bn;
+	}
+}
+
+static int mbstate[3];
+static int prev_x, prev_y;
+
+static void mouse(int bn, int st, int x, int y)
+{
+	int bidx = bn - GLUT_LEFT_BUTTON;
+	int press = st == GLUT_DOWN ? 1 : 0;
+
+	if(bidx < 3) {
+		mbstate[bidx] = press;
+	}
+	prev_x = x;
+	prev_y = y;
+}
+
+static void motion(int x, int y)
+{
+	int dx, dy;
+
+	dx = x - prev_x;
+	dy = y - prev_y;
+	prev_x = x;
+	prev_y = y;
+
+	if(!(dx | dy)) return;
+
+	if(mbstate[0]) {
+		view_dtheta -= dx * 0x100;
+		view_dphi -= dy * 0x100;
+	}
+	if(mbstate[2]) {
+		view_zoom += dy * 0x100;
+		if(view_zoom < 0) view_zoom = 0;
 	}
 }
 

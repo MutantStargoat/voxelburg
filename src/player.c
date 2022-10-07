@@ -1,4 +1,5 @@
 #include <string.h>
+#include "game.h"
 #include "player.h"
 #include "level.h"
 #include "gbaregs.h"
@@ -15,6 +16,17 @@ void init_player(struct player *p, struct level *lvl)
 
 void player_input(struct player *p, uint16_t bnstate)
 {
+#ifndef BUILD_GBA
+	p->theta = (p->theta + view_dtheta) % X_2PI;
+	if(p->theta < 0) p->theta += X_2PI;
+	p->phi += view_dphi;
+	if(p->phi > X_HPI) p->phi = X_HPI;
+	if(p->phi < -X_HPI) p->phi = -X_HPI;
+
+	view_dtheta = 0;
+	view_dphi = 0;
+#endif
+
 	if(bnstate & KEY_UP) {
 		p->phi += 0x800;
 		if(p->phi > X_HPI) p->phi = X_HPI;
