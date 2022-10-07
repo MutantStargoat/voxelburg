@@ -100,7 +100,7 @@ run: $(bin)
 .PHONY: debug
 debug: $(elf)
 	mgba -2 -g $(bin) &
-	$(TCPREFIX)gdb $<
+	$(TCPREFIX)gdb -x gdbmgba $<
 
 .PHONY: disasm
 disasm: $(elf)
@@ -111,3 +111,8 @@ libs: $(libs)
 
 libs/maxmod/libmm.a:
 	$(MAKE) -C libs/maxmod
+
+
+.PHONY: pc
+pc:
+	$(MAKE) -f Makefile.pc
