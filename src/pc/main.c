@@ -130,9 +130,9 @@ uint16_t get_input(void)
 #define PACK_RGB32(r, g, b) \
 	((((r) & 0xff) << 16) | (((g) & 0xff) << 8) | ((b) & 0xff) | 0xff000000)
 
-#define UNPACK_R16(c)	(((c) >> 9) & 0xf8)
-#define UNPACK_G16(c)	(((c) >> 3) & 0xf8)
-#define UNPACK_B16(c)	(((c) << 3) & 0xf8)
+#define UNPACK_R16(c)	(((c) << 3) & 0xf8)
+#define UNPACK_G16(c)	(((c) >> 2) & 0xf8)
+#define UNPACK_B16(c)	(((c) >> 7) & 0xf8)
 
 void present(int buf)
 {
