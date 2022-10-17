@@ -1,5 +1,5 @@
 src = $(wildcard src/*.c) $(wildcard src/pc/*.c)
-ssrc = data/lut.s
+ssrc = $(wildcard src/*.s) data/lut.s
 obj = $(src:.c=.o) $(ssrc:.s=.o)
 dep = $(src:.c=.d)
 bin = gbajam22

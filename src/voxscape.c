@@ -5,7 +5,6 @@
 #include <math.h>
 #include <assert.h>
 #include "voxscape.h"
-#include "util.h"
 #include "debug.h"
 
 #define XLERP(a, b, t, fp) \
@@ -45,19 +44,15 @@ struct voxscape {
 	unsigned int valid;
 };
 
-struct voxscape *vox_create(int xsz, int ysz)
+struct voxscape *vox_create(int xsz, int ysz, uint8_t *himg, uint8_t *cimg)
 {
 	struct voxscape *vox;
 
 	if(!(vox = calloc(1, sizeof *vox))) {
 		return 0;
 	}
-	if(!(vox->height = calloc(xsz * ysz, 1))) {
-		panic(get_pc(), "vox_create: failed to allocate %dx%d heightmap\n", xsz, ysz);
-	}
-	if(!(vox->color = calloc(xsz * ysz, 1))) {
-		panic(get_pc(), "vox_create: failed to allocate %dx%d color map\n", xsz, ysz);
-	}
+	vox->height = himg;
+	vox->color = cimg;
 	vox->xsz = xsz;
 	vox->ysz = ysz;
 
@@ -266,7 +261,7 @@ void vox_render_slice(struct voxscape *vox, int n)
 			color = vox_color(vox, x, y);
 			colstart = vox->fbheight - hval;
 			colheight = hval - vox->coltop[i];
-			fbptr = vox->fb + colstart * vox->fbwidth + i;
+			fbptr = vox->fb + colstart * vox->fbwidth / 2 + i / 2;
 
 			for(j=0; j<colheight; j++) {
 				*fbptr = color | ((uint16_t)color << 8);
@@ -315,7 +310,7 @@ void vox_sky_grad(struct voxscape *vox, uint8_t chor, uint8_t ctop)
 
 	/* TODO double columns */
 	for(i=0; i<vox->fbwidth/2; i++) {
-		fbptr = vox->fb + i;
+		fbptr = vox->fb + i / 2;
 		colheight = vox->fbheight - vox->coltop[i];
 		for(j=0; j<colheight; j++) {
 			*fbptr = grad[j] | ((uint16_t)grad[j] << 8);

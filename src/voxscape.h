@@ -10,7 +10,7 @@ enum {
 
 struct voxscape;
 
-struct voxscape *vox_create(int xsz, int ysz);
+struct voxscape *vox_create(int xsz, int ysz, uint8_t *himg, uint8_t *cimg);
 void vox_free(struct voxscape *vox);
 
 /* data argument can be null */

@@ -21,4 +21,10 @@ enum {
 void select_input(uint16_t bmask);
 uint16_t get_input(void);
 
+#ifdef BUILD_GBA
+#define read_input()	(~REG_KEYINPUT)
+#else
+#define read_input()	get_input()
+#endif
+
 #endif	/* INPUT_H_ */

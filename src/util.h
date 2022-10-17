@@ -29,8 +29,14 @@ void present(int buf);		/* defined in src/pc/main.c */
 
 extern int16_t sinlut[];
 
-#define SIN(x)	sinlut[(x) & 0xff]
-#define COS(x)	sinlut[((x) + 64) & 0xff]
+#define SINLUT_BITS		8
+#define SINLUT_SIZE		(1 << SINLUT_BITS)
+
+#define SIN(angle) \
+	((int32_t)sinlut[((angle) >> (16 - SINLUT_BITS)) & (SINLUT_SIZE - 1)] << 1)
+
+#define COS(angle) \
+	((int32_t)sinlut[(((angle) >> (16 - SINLUT_BITS)) + (SINLUT_SIZE / 4)) & (SINLUT_SIZE - 1)] << 1)
 
 int iwram_brk(void *addr);
 void *iwram_sbrk(intptr_t delta);
