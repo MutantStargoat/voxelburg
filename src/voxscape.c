@@ -7,6 +7,9 @@
 #include "voxscape.h"
 #include "debug.h"
 
+#define FBWIDTH		240
+#define FBHEIGHT	160
+
 #define XLERP(a, b, t, fp) \
 	((((a) << (fp)) + ((b) - (a)) * (t)) >> fp)
 
@@ -226,7 +229,8 @@ void vox_begin(struct voxscape *vox)
 {
 	int i;
 
-	memset(vox->coltop, 0, vox->fbwidth * sizeof *vox->coltop);
+	memset(vox->fb, 0, FBWIDTH * FBHEIGHT);
+	memset(vox->coltop, 0, FBWIDTH * sizeof *vox->coltop);
 
 	if(!(vox->valid & SLICELEN)) {
 		float theta = (float)vox->fov * M_PI / 360.0f;	/* half angle */
@@ -239,7 +243,7 @@ void vox_begin(struct voxscape *vox)
 
 void vox_render_slice(struct voxscape *vox, int n)
 {
-	int i, j, hval, colstart, colheight, z;
+	int i, j, hval, colstart, colheight, col, z;
 	int32_t x, y, len, xstep, ystep;
 	uint8_t color;
 	uint16_t *fbptr;
@@ -247,29 +251,48 @@ void vox_render_slice(struct voxscape *vox, int n)
 	z = vox->znear + n;
 
 	len = vox->slicelen[n] >> 8;
-	xstep = ((COS(vox->angle) >> 8) * len) / vox->fbwidth;
-	ystep = ((SIN(vox->angle) >> 8) * len) / vox->fbwidth;
+	xstep = (((COS(vox->angle) >> 4) * len) >> 4) / FBWIDTH;
+	ystep = (((SIN(vox->angle) >> 4) * len) >> 4) / FBWIDTH;
 
-	x = vox->x - SIN(vox->angle) * z - xstep * (vox->fbwidth >> 1);
-	y = vox->y + COS(vox->angle) * z - ystep * (vox->fbwidth >> 1);
-	/* TODO double column */
-	for(i=0; i<vox->fbwidth/2; i++) {
+	x = vox->x - SIN(vox->angle) * z - xstep * (FBWIDTH / 2);
+	y = vox->y + COS(vox->angle) * z - ystep * (FBWIDTH / 2);
+
+	for(i=0; i<FBWIDTH / 2; i++) {
+		col = i * 2;
 		hval = vox_height(vox, x, y) - vox->vheight;
-		hval = hval * 160 / (vox->znear + n) + vox->horizon;
-		if(hval > vox->fbheight) hval = vox->fbheight;
-		if(hval > vox->coltop[i]) {
+		hval = hval * 40 / (vox->znear + n) + vox->horizon;
+		if(hval > FBHEIGHT) hval = FBHEIGHT;
+		if(hval > vox->coltop[col]) {
 			color = vox_color(vox, x, y);
-			colstart = vox->fbheight - hval;
-			colheight = hval - vox->coltop[i];
-			fbptr = vox->fb + colstart * vox->fbwidth / 2 + i / 2;
+			colstart = FBHEIGHT - hval;
+			colheight = hval - vox->coltop[col];
+			fbptr = vox->fb + colstart * (FBWIDTH / 2) + i;
 
 			for(j=0; j<colheight; j++) {
-				*fbptr = color | ((uint16_t)color << 8);
-				fbptr += vox->fbwidth >> 1;
+				*fbptr |= color;
+				fbptr += FBWIDTH / 2;
 			}
-			vox->coltop[i] = hval;
+			vox->coltop[col] = hval;
 		}
+		x += xstep;
+		y += ystep;
 
+		col++;
+		hval = vox_height(vox, x, y) - vox->vheight;
+		hval = hval * 40 / (vox->znear + n) + vox->horizon;
+		if(hval > FBHEIGHT) hval = FBHEIGHT;
+		if(hval > vox->coltop[col]) {
+			color = vox_color(vox, x, y);
+			colstart = FBHEIGHT - hval;
+			colheight = hval - vox->coltop[col];
+			fbptr = vox->fb + colstart * (FBWIDTH / 2) + i;
+
+			for(j=0; j<colheight; j++) {
+				*fbptr |= ((uint16_t)color << 8);
+				fbptr += FBWIDTH / 2;
+			}
+			vox->coltop[col] = hval;
+		}
 		x += xstep;
 		y += ystep;
 	}
@@ -277,44 +300,70 @@ void vox_render_slice(struct voxscape *vox, int n)
 
 void vox_sky_solid(struct voxscape *vox, uint8_t color)
 {
-	int i, j, colheight;
+	int i, j, colh0, colh1, colhboth;
 	uint16_t *fbptr;
 
-	/* TODO double columns */
-	for(i=0; i<vox->fbwidth/2; i++) {
+	for(i=0; i<FBWIDTH / 2; i++) {
 		fbptr = vox->fb + i;
-		colheight = vox->fbheight - vox->coltop[i];
-		for(j=0; j<colheight; j++) {
+		colh0 = FBHEIGHT - vox->coltop[i << 1];
+		colh1 = FBHEIGHT - vox->coltop[(i << 1) + 1];
+		colhboth = colh0 < colh1 ? colh0 : colh1;
+
+		for(j=0; j<colhboth; j++) {
 			*fbptr = color | ((uint16_t)color << 8);
-			fbptr += vox->fbwidth >> 1;
+			fbptr += FBWIDTH / 2;
+		}
+
+		if(colh0 > colh1) {
+			for(j=colhboth; j<colh0; j++) {
+				*fbptr |= color;
+				fbptr += FBWIDTH / 2;
+			}
+		} else {
+			for(j=colhboth; j<colh1; j++) {
+				*fbptr |= (uint16_t)color << 8;
+				fbptr += FBWIDTH / 2;
+			}
 		}
 	}
 }
 
 void vox_sky_grad(struct voxscape *vox, uint8_t chor, uint8_t ctop)
 {
-	int i, j, colheight, t;
-	int d = vox->fbheight - vox->horizon;
-	uint8_t *grad;
+	int i, j, colh0, colh1, colhboth, t;
+	int d = FBHEIGHT - vox->horizon;
+	uint8_t grad[FBHEIGHT];
 	uint16_t *fbptr;
 
-	grad = alloca(vox->fbheight * sizeof *grad);
-
 	for(i=0; i<d; i++) {
-		t = (i << 8) / d;
-		grad[i] = XLERP(ctop, chor, t, 8);
+		t = (i << 16) / d;
+		grad[i] = XLERP(ctop, chor, t, 16);
 	}
-	for(i=d; i<vox->fbheight; i++) {
+	for(i=d; i<FBHEIGHT; i++) {
 		grad[i] = chor;
 	}
 
-	/* TODO double columns */
-	for(i=0; i<vox->fbwidth/2; i++) {
-		fbptr = vox->fb + i / 2;
-		colheight = vox->fbheight - vox->coltop[i];
-		for(j=0; j<colheight; j++) {
+	for(i=0; i<FBWIDTH / 2; i++) {
+		fbptr = vox->fb + i;
+		colh0 = FBHEIGHT - vox->coltop[i << 1];
+		colh1 = FBHEIGHT - vox->coltop[(i << 1) + 1];
+		colhboth = colh0 < colh1 ? colh0 : colh1;
+
+		for(j=0; j<colhboth; j++) {
 			*fbptr = grad[j] | ((uint16_t)grad[j] << 8);
-			fbptr += vox->fbwidth >> 1;
+			fbptr += FBWIDTH / 2;
+		}
+
+		if(colh0 > colh1) {
+			for(j=colhboth; j<colh0; j++) {
+				*fbptr |= grad[j];
+				fbptr += FBWIDTH / 2;
+			}
+		} else {
+			for(j=colhboth; j<colh1; j++) {
+				*fbptr |= (uint16_t)grad[j] << 8;
+				fbptr += FBWIDTH / 2;
+			}
 		}
 	}
 }

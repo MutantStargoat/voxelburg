@@ -98,7 +98,7 @@ install: $(bin)
 
 .PHONY: run
 run: $(bin)
-	mgba -2 $(bin)
+	mgba -3 $(bin)
 
 .PHONY: debug
 debug: $(elf)

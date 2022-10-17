@@ -66,17 +66,17 @@ static int gamescr_start(void)
 		int r = color_cmap[i * 3];
 		int g = color_cmap[i * 3 + 1];
 		int b = color_cmap[i * 3 + 2];
-		gba_bgpal[i] = ((r << 8) & 0x7c00) | ((g << 2) & 0x3e0) | (b >> 3);
+		gba_bgpal[i] = (((uint16_t)b << 7) & 0x7c00) | (((uint16_t)g << 2) & 0x3e0) | (((uint16_t)r >> 3) & 0x1f);
 	}
 
 	/* setup sky gradient palette */
 	for(i=0; i<64; i++) {
-		int t = i << 8;
+		int t = (i << 8) / 64;
 		int r = (0xcc00 + (0x55 - 0xcc) * t) >> 8;
 		int g = (0x7700 + (0x88 - 0x77) * t) >> 8;
 		int b = (0xff00 + (0xcc - 0xff) * t) >> 8;
 		int cidx = COLOR_HORIZON + i;
-		gba_bgpal[cidx] = ((r << 8) & 0x7c00) | ((g << 2) & 0x3e0) | (b >> 3);
+		gba_bgpal[cidx] = ((b << 7) & 0x7c00) | ((g << 2) & 0x3e0) | (r >> 3);
 	}
 
 	/*select_input(BN_DPAD | BN_LT | BN_RT);*/
@@ -101,10 +101,10 @@ static void gamescr_frame(void)
 	update();
 	draw();
 
-	vblperf_end();
+	//vblperf_end();
 	wait_vblank();
 	present(backbuf);
-	vblperf_begin();
+	//vblperf_begin();
 }
 
 #define WALK_SPEED	0x40000
@@ -147,7 +147,6 @@ static void update(void)
 
 static void draw(void)
 {
-//	vox_begin(vox);
 	vox_render(vox);
 	vox_sky_grad(vox, COLOR_HORIZON, COLOR_ZENITH);
 	//vox_sky_solid(vox, COLOR_ZENITH);
