@@ -1,10 +1,12 @@
 src = $(wildcard src/*.c) $(wildcard src/gba/*.c)
-ssrc = $(wildcard src/gba/*.s) data/lut.s
+ssrc = $(wildcard src/*.s) $(wildcard src/gba/*.s) data/lut.s
 obj = $(src:.c=.arm.o) $(ssrc:.s=.arm.o)
 dep = $(src:.c=.arm.d)
 name = gbajam22
 elf = $(name).elf
 bin = $(name).gba
+
+data = data/color.raw data/color.pal data/height.raw
 
 libs = libs/maxmod/libmm.a
 
@@ -47,6 +49,7 @@ $(elf): $(obj) $(libs)
 	$(AS) -o $@ $(ASFLAGS) $<
 
 src/data.o: src/data.s $(data)
+src/data.arm.o: src/data.s $(data)
 
 tools/pngdump/pngdump:
 	$(MAKE) -C tools/pngdump
