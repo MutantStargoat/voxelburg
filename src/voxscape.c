@@ -7,8 +7,18 @@
 #include "voxscape.h"
 #include "debug.h"
 
+/* hardcoded dimensions for the GBA */
 #define FBWIDTH		240
 #define FBHEIGHT	160
+/* map size */
+#define XSZ			512
+#define YSZ			512
+#define XSHIFT		9
+#define XMASK		0x1ff
+#define YMASK		0x1ff
+
+
+#define NO_LERP
 
 #define XLERP(a, b, t, fp) \
 	((((a) << (fp)) + ((b) - (a)) * (t)) >> fp)
@@ -108,10 +118,15 @@ void vox_fog(struct voxscape *vox, int zstart, uint8_t color)
 }
 
 #define H(x, y)	\
-	vox->height[((((y) >> 16) & vox->ymask) << vox->xshift) + (((x) >> 16) & vox->xmask)]
+	vox->height[((((y) >> 16) & YMASK) << XSHIFT) + (((x) >> 16) & XMASK)]
 #define C(x, y) \
-	vox->color[((((y) >> 16) & vox->ymask) << vox->xshift) + (((x) >> 16) & vox->xmask)]
+	vox->color[((((y) >> 16) & YMASK) << XSHIFT) + (((x) >> 16) & XMASK)]
 
+#ifdef NO_LERP
+#define vox_height(vox, x, y)	H(x, y)
+#define vox_color(vox, x, y)	C(x, y)
+
+#else
 
 int vox_height(struct voxscape *vox, int32_t x, int32_t y)
 {
@@ -156,6 +171,7 @@ int vox_color(struct voxscape *vox, int32_t x, int32_t y)
 	c1 = XLERP(c10, c11, v, 16);
 	return XLERP(c0, c1, u, 16);
 }
+#endif	/* !NO_LERP */
 
 
 void vox_filter(struct voxscape *vox, int hfilt, int cfilt)
@@ -167,9 +183,8 @@ void vox_filter(struct voxscape *vox, int hfilt, int cfilt)
 void vox_framebuf(struct voxscape *vox, int xres, int yres, void *fb, int horizon)
 {
 	if(xres != vox->fbwidth) {
-		free(vox->coltop);
-		if(!(vox->coltop = malloc(xres * sizeof *vox->coltop))) {
-			fprintf(stderr, "vox_framebuf: failed to allocate column table (%d)\n", xres);
+		if(!(vox->coltop = iwram_sbrk(xres * sizeof *vox->coltop))) {
+			panic(get_pc(), "vox_framebuf: failed to allocate column table (%d)\n", xres);
 			return;
 		}
 	}
@@ -201,8 +216,8 @@ void vox_proj(struct voxscape *vox, int fov, int znear, int zfar)
 
 	vox->nslices = vox->zfar - vox->znear;
 	free(vox->slicelen);
-	if(!(vox->slicelen = malloc(vox->nslices * sizeof *vox->slicelen))) {
-		fprintf(stderr, "vox_proj: failed to allocate slice length table (%d)\n", vox->nslices);
+	if(!(vox->slicelen = iwram_sbrk(vox->nslices * sizeof *vox->slicelen))) {
+		panic(get_pc(), "vox_proj: failed to allocate slice length table (%d)\n", vox->nslices);
 		return;
 	}
 
@@ -241,11 +256,12 @@ void vox_begin(struct voxscape *vox)
 	}
 }
 
+ARM_IWRAM
 void vox_render_slice(struct voxscape *vox, int n)
 {
-	int i, j, hval, colstart, colheight, col, z;
+	int i, j, hval, last_hval, colstart, colheight, col, z, offs, last_offs = -1;
 	int32_t x, y, len, xstep, ystep;
-	uint8_t color;
+	uint8_t color, last_col;
 	uint16_t *fbptr;
 
 	z = vox->znear + n;
@@ -257,13 +273,22 @@ void vox_render_slice(struct voxscape *vox, int n)
 	x = vox->x - SIN(vox->angle) * z - xstep * (FBWIDTH / 2);
 	y = vox->y + COS(vox->angle) * z - ystep * (FBWIDTH / 2);
 
-	for(i=0; i<FBWIDTH / 2; i++) {
+	for(i=1; i<FBWIDTH / 2; i++) {
 		col = i * 2;
-		hval = vox_height(vox, x, y) - vox->vheight;
-		hval = hval * 40 / (vox->znear + n) + vox->horizon;
-		if(hval > FBHEIGHT) hval = FBHEIGHT;
+		offs = (((y >> 16) & YMASK) << XSHIFT) + ((x >> 16) & XMASK);
+		if(offs == last_offs) {
+			hval = last_hval;
+			color = last_col;
+		} else {
+			hval = vox->height[offs] - vox->vheight;
+			hval = hval * 40 / (vox->znear + n) + vox->horizon;
+			if(hval > FBHEIGHT) hval = FBHEIGHT;
+			color = vox->color[offs];
+			last_offs = offs;
+			last_hval = hval;
+			last_col = color;
+		}
 		if(hval > vox->coltop[col]) {
-			color = vox_color(vox, x, y);
 			colstart = FBHEIGHT - hval;
 			colheight = hval - vox->coltop[col];
 			fbptr = vox->fb + colstart * (FBWIDTH / 2) + i;
@@ -278,11 +303,20 @@ void vox_render_slice(struct voxscape *vox, int n)
 		y += ystep;
 
 		col++;
-		hval = vox_height(vox, x, y) - vox->vheight;
-		hval = hval * 40 / (vox->znear + n) + vox->horizon;
-		if(hval > FBHEIGHT) hval = FBHEIGHT;
+		offs = (((y >> 16) & YMASK) << XSHIFT) + ((x >> 16) & XMASK);
+		if(offs == last_offs) {
+			hval = last_hval;
+			color = last_col;
+		} else {
+			hval = vox->height[offs] - vox->vheight;
+			hval = hval * 40 / (vox->znear + n) + vox->horizon;
+			if(hval > FBHEIGHT) hval = FBHEIGHT;
+			color = vox->color[offs];
+			last_offs = offs;
+			last_hval = hval;
+			last_col = color;
+		}
 		if(hval > vox->coltop[col]) {
-			color = vox_color(vox, x, y);
 			colstart = FBHEIGHT - hval;
 			colheight = hval - vox->coltop[col];
 			fbptr = vox->fb + colstart * (FBWIDTH / 2) + i;
@@ -298,12 +332,13 @@ void vox_render_slice(struct voxscape *vox, int n)
 	}
 }
 
+ARM_IWRAM
 void vox_sky_solid(struct voxscape *vox, uint8_t color)
 {
 	int i, j, colh0, colh1, colhboth;
 	uint16_t *fbptr;
 
-	for(i=0; i<FBWIDTH / 2; i++) {
+	for(i=1; i<FBWIDTH / 2; i++) {
 		fbptr = vox->fb + i;
 		colh0 = FBHEIGHT - vox->coltop[i << 1];
 		colh1 = FBHEIGHT - vox->coltop[(i << 1) + 1];
@@ -343,7 +378,7 @@ void vox_sky_grad(struct voxscape *vox, uint8_t chor, uint8_t ctop)
 		grad[i] = chor;
 	}
 
-	for(i=0; i<FBWIDTH / 2; i++) {
+	for(i=1; i<FBWIDTH / 2; i++) {
 		fbptr = vox->fb + i;
 		colh0 = FBHEIGHT - vox->coltop[i << 1];
 		colh1 = FBHEIGHT - vox->coltop[(i << 1) + 1];

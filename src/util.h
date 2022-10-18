@@ -18,10 +18,14 @@
 		REG_DISPCNT = DISPCNT_BG2 | DISPCNT_OBJ | 4 | ((x) << 4); \
 	} while(0)
 
+#define ARM_IWRAM	__attribute__((noinline, target("arm"), section(".iwram")))
+
 #else	/* non-GBA build */
 #define wait_vblank()
 
 void present(int buf);		/* defined in src/pc/main.c */
+
+#define ARM_IWRAM
 #endif
 
 #define set_bg_color(idx, r, g, b) \

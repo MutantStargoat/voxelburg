@@ -12,7 +12,7 @@ volatile int vblperf_count;
 
 void vblperf_setcolor(int palidx);
 
-#ifdef VBLBAR
+#if defined(BUILD_GBA) && defined(VBLBAR)
 #define vblperf_begin()	\
 	do { \
 		*vblperf_palptr = 0; \

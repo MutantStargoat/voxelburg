@@ -19,7 +19,7 @@ OBJCOPY = $(TCPREFIX)objcopy
 OBJDUMP = $(TCPREFIX)objdump
 
 def = -DBUILD_GBA
-opt = -O0 -fomit-frame-pointer -mcpu=arm7tdmi -mtune=arm7tdmi -mthumb -mthumb-interwork
+opt = -O3 -fomit-frame-pointer -mcpu=arm7tdmi -mtune=arm7tdmi -mthumb -mthumb-interwork
 dbg = -g
 inc = -I. -Isrc -Isrc/gba -Ilibs/maxmod
 warn = -pedantic -Wall

@@ -138,7 +138,7 @@ void present(int buf)
 {
 	int i, npix = 240 * 160;
 	uint32_t *dptr = convbuf;
-	uint8_t *sptr = buf ? gba_vram_lfb1 : gba_vram_lfb0;
+	uint8_t *sptr = (uint8_t*)(buf ? gba_vram_lfb1 : gba_vram_lfb0);
 
 	for(i=0; i<npix; i++) {
 		int idx = *sptr++;

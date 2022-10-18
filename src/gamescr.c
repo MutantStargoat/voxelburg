@@ -52,14 +52,14 @@ static int gamescr_start(void)
 
 	gba_setmode(4, DISPCNT_BG2 | DISPCNT_OBJ | DISPCNT_FB1);
 
-	vblperf_setcolor(1);
+	vblperf_setcolor(0);
 
 	pos[0] = pos[1] = 256 << 16;
 
 	if(!(vox = vox_create(512, 512, height_pixels, color_pixels))) {
 		panic(get_pc(), "vox_create");
 	}
-	vox_proj(vox, 45, 1, 250);
+	vox_proj(vox, 45, 10, 100);
 
 	/* setup color image palette */
 	for(i=0; i<192; i++) {
@@ -78,8 +78,6 @@ static int gamescr_start(void)
 		int cidx = COLOR_HORIZON + i;
 		gba_bgpal[cidx] = ((b << 7) & 0x7c00) | ((g << 2) & 0x3e0) | (r >> 3);
 	}
-
-	/*select_input(BN_DPAD | BN_LT | BN_RT);*/
 
 	nframes = 0;
 	return 0;
@@ -101,10 +99,10 @@ static void gamescr_frame(void)
 	update();
 	draw();
 
-	//vblperf_end();
+	vblperf_end();
 	wait_vblank();
 	present(backbuf);
-	//vblperf_begin();
+	vblperf_begin();
 }
 
 #define WALK_SPEED	0x40000
@@ -115,41 +113,42 @@ static void update(void)
 	int32_t fwd[2], right[2];
 	uint16_t input;
 
-	input = read_input();
+	if((input = read_input())) {
 
-	if(input & BN_LT) angle += TURN_SPEED;
-	if(input & BN_RT) angle -= TURN_SPEED;
+		if(input & BN_LT) angle += TURN_SPEED;
+		if(input & BN_RT) angle -= TURN_SPEED;
 
-	fwd[0] = -SIN(angle);
-	fwd[1] = COS(angle);
-	right[0] = fwd[1];
-	right[1] = -fwd[0];
+		fwd[0] = -SIN(angle);
+		fwd[1] = COS(angle);
+		right[0] = fwd[1];
+		right[1] = -fwd[0];
 
-	if(input & BN_UP) {
-		pos[0] += fwd[0];
-		pos[1] += fwd[1];
-	}
-	if(input & BN_DOWN) {
-		pos[0] -= fwd[0];
-		pos[1] -= fwd[1];
-	}
-	if(input & BN_RIGHT) {
-		pos[0] += right[0];
-		pos[1] += right[1];
-	}
-	if(input & BN_LEFT) {
-		pos[0] -= right[0];
-		pos[1] -= right[1];
-	}
+		if(input & BN_UP) {
+			pos[0] += fwd[0];
+			pos[1] += fwd[1];
+		}
+		if(input & BN_DOWN) {
+			pos[0] -= fwd[0];
+			pos[1] -= fwd[1];
+		}
+		if(input & BN_RIGHT) {
+			pos[0] += right[0];
+			pos[1] += right[1];
+		}
+		if(input & BN_LEFT) {
+			pos[0] -= right[0];
+			pos[1] -= right[1];
+		}
 
-	vox_view(vox, pos[0], pos[1], -30, angle);
+		vox_view(vox, pos[0], pos[1], -30, angle);
+	}
 }
 
 static void draw(void)
 {
 	vox_render(vox);
-	vox_sky_grad(vox, COLOR_HORIZON, COLOR_ZENITH);
-	//vox_sky_solid(vox, COLOR_ZENITH);
+	//vox_sky_grad(vox, COLOR_HORIZON, COLOR_ZENITH);
+	vox_sky_solid(vox, COLOR_ZENITH);
 }
 
 #ifdef BUILD_GBA

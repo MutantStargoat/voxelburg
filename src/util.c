@@ -107,6 +107,6 @@ void *get_pc(void)
 
 void *get_sp(void)
 {
-	return 0;	/* not useful on PC builds */
+	return (void*)-1;	/* not useful on PC builds */
 }
 #endif
