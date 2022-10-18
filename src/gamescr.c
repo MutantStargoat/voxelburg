@@ -54,12 +54,12 @@ static int gamescr_start(void)
 
 	vblperf_setcolor(0);
 
-	pos[0] = pos[1] = 256 << 16;
+	pos[0] = pos[1] = VOX_SZ << 15;
 
-	if(!(vox = vox_create(512, 512, height_pixels, color_pixels))) {
+	if(!(vox = vox_create(VOX_SZ, VOX_SZ, height_pixels, color_pixels))) {
 		panic(get_pc(), "vox_create");
 	}
-	vox_proj(vox, 45, 10, 100);
+	vox_proj(vox, 45, 2, VOX_SZ / 5);
 
 	/* setup color image palette */
 	for(i=0; i<192; i++) {
@@ -102,6 +102,10 @@ static void gamescr_frame(void)
 	vblperf_end();
 	wait_vblank();
 	present(backbuf);
+
+	if(!(nframes & 15)) {
+		emuprint("vbl: %d", vblperf_count);
+	}
 	vblperf_begin();
 }
 
@@ -151,9 +155,7 @@ static void draw(void)
 	vox_sky_solid(vox, COLOR_ZENITH);
 }
 
-#ifdef BUILD_GBA
-__attribute__((noinline, target("arm"), section(".iwram")))
-#endif
+ARM_IWRAM
 static void gamescr_vblank(void)
 {
 	num_vbl++;

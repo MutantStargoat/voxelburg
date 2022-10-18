@@ -32,8 +32,6 @@ int main(void)
 	REG_DISPSTAT |= DISPSTAT_IEN_VBLANK;
 	unmask(INTR_VBLANK);
 
-	intr_enable();
-
 	if(init_screens() == -1) {
 		panic(get_pc(), "failed to initialize screens");
 	}
@@ -42,19 +40,22 @@ int main(void)
 		panic(get_pc(), "failed to find game screen");
 	}
 
+	intr_enable();
+
 	for(;;) {
 		curscr->frame();
 	}
 	return 0;
 }
 
+ARM_IWRAM
 static void vblank(void)
 {
+#ifdef VBLBAR
 	vblperf_count++;
+#endif
 
-	if(curscr && curscr->vblank) {
-		curscr->vblank();
-	}
+	curscr->vblank();
 
 #ifndef NOSOUND
 	mmVBlank();

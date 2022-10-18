@@ -10,9 +10,9 @@
 #include "util.h"
 
 uint16_t vblperf_color[] = {
-	/* grn  blue   cyan  yellow  orng    red     purple  d.green purple ... */
-	/* 60    30     20     15     12      10      8.5     7.5    ... */
-	0x3e0, 0xf863, 0xffc0, 0x3ff, 0x1ff, 0x001f, 0xf81f, 0x1e0, 0xf81f, 0xf81f, 0xf81f
+	/* white white  grn    blue   cyan    yellow   orng    red   purple  d.green white ... */
+	/* 60    30     20     15     12       10      8.5     7.5    6.6      6      5.4  ... */
+	0xffff, 0xffff, 0x3e0, 0xf863, 0xffc0, 0x3ff, 0x1ff, 0x001f, 0xf81f, 0x1e0, 0xffff, 0xffff, 0xffff
 };
 
 void vblperf_setcolor(int palidx)

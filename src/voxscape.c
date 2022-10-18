@@ -11,11 +11,12 @@
 #define FBWIDTH		240
 #define FBHEIGHT	160
 /* map size */
-#define XSZ			512
-#define YSZ			512
-#define XSHIFT		9
-#define XMASK		0x1ff
-#define YMASK		0x1ff
+#define XSZ			256
+#define YSZ			256
+#define XSHIFT		8
+#define XMASK		0xff
+#define YMASK		0xff
+#define HSCALE		20
 
 
 #define NO_LERP
@@ -60,6 +61,8 @@ struct voxscape {
 struct voxscape *vox_create(int xsz, int ysz, uint8_t *himg, uint8_t *cimg)
 {
 	struct voxscape *vox;
+
+	assert(xsz == XSZ && ysz == YSZ);
 
 	if(!(vox = calloc(1, sizeof *vox))) {
 		return 0;
@@ -281,7 +284,7 @@ void vox_render_slice(struct voxscape *vox, int n)
 			color = last_col;
 		} else {
 			hval = vox->height[offs] - vox->vheight;
-			hval = hval * 40 / (vox->znear + n) + vox->horizon;
+			hval = hval * HSCALE / (vox->znear + n) + vox->horizon;
 			if(hval > FBHEIGHT) hval = FBHEIGHT;
 			color = vox->color[offs];
 			last_offs = offs;
@@ -309,7 +312,7 @@ void vox_render_slice(struct voxscape *vox, int n)
 			color = last_col;
 		} else {
 			hval = vox->height[offs] - vox->vheight;
-			hval = hval * 40 / (vox->znear + n) + vox->horizon;
+			hval = hval * HSCALE / (vox->znear + n) + vox->horizon;
 			if(hval > FBHEIGHT) hval = FBHEIGHT;
 			color = vox->color[offs];
 			last_offs = offs;
