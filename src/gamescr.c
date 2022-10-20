@@ -139,10 +139,10 @@ static void update(void)
 
 	if((input = read_input())) {
 
-		if(input & BN_LT) {
+		if(input & BN_LEFT) {
 			angle += TURN_SPEED;
 		}
-		if(input & BN_RT) {
+		if(input & BN_RIGHT) {
 			angle -= TURN_SPEED;
 		}
 
@@ -159,11 +159,11 @@ static void update(void)
 			pos[0] -= fwd[0];
 			pos[1] -= fwd[1];
 		}
-		if(input & BN_RIGHT) {
+		if(input & BN_RT) {
 			pos[0] += right[0];
 			pos[1] += right[1];
 		}
-		if(input & BN_LEFT) {
+		if(input & BN_LT) {
 			pos[0] -= right[0];
 			pos[1] -= right[1];
 		}
@@ -203,14 +203,14 @@ static void gamescr_vblank(void)
 	REG_BG2PC = -sa;
 	REG_BG2PD = ca;
 
-	if((input & (BN_LT | BN_RT)) == 0) {
+	if((input & (BN_LEFT | BN_RIGHT)) == 0) {
 		if(bank) {
 			bank -= bankdir << 4;
 		}
-	} else if(input & BN_LT) {
+	} else if(input & BN_LEFT) {
 		bankdir = -1;
 		if(bank > -MAXBANK) bank -= 16;
-	} else if(input & BN_RT) {
+	} else if(input & BN_RIGHT) {
 		bankdir = 1;
 		if(bank < MAXBANK) bank += 16;
 	}
