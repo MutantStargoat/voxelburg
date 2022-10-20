@@ -6,7 +6,8 @@ name = gbajam22
 elf = $(name).elf
 bin = $(name).gba
 
-data = data/color.raw data/color.pal data/height.raw
+data = data/color.raw data/color.pal data/height.raw \
+	   data/spr_game.raw data/spr_game.pal
 
 libs = libs/maxmod/libmm.a
 

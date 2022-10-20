@@ -51,9 +51,7 @@ int main(void)
 ARM_IWRAM
 static void vblank(void)
 {
-#ifdef VBLBAR
 	vblperf_count++;
-#endif
 
 	curscr->vblank();
 

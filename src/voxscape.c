@@ -10,13 +10,14 @@
 /* hardcoded dimensions for the GBA */
 #define FBWIDTH		240
 #define FBHEIGHT	160
+#define FBPITCH		240
 /* map size */
-#define XSZ			256
-#define YSZ			256
-#define XSHIFT		8
-#define XMASK		0xff
-#define YMASK		0xff
-#define HSCALE		20
+#define XSZ			512
+#define YSZ			512
+#define XSHIFT		9
+#define XMASK		0x1ff
+#define YMASK		0x1ff
+#define HSCALE		40
 
 
 #define NO_LERP
@@ -232,22 +233,25 @@ void vox_proj(struct voxscape *vox, int fov, int znear, int zfar)
  * for each column step along this line and compute height for each pixel
  * fill the visible (top) part of each column
  */
-
+ARM_IWRAM
 void vox_render(struct voxscape *vox)
 {
 	int i;
 
 	vox_begin(vox);
 	for(i=0; i<vox->nslices; i++) {
+		/*if(i >= 10 && (i & 1) == 0) {
+			continue;
+		}*/
 		vox_render_slice(vox, i);
 	}
 }
 
+ARM_IWRAM
 void vox_begin(struct voxscape *vox)
 {
 	int i;
 
-	memset(vox->fb, 0, FBWIDTH * FBHEIGHT);
 	memset(vox->coltop, 0, FBWIDTH * sizeof *vox->coltop);
 
 	if(!(vox->valid & SLICELEN)) {
@@ -270,14 +274,14 @@ void vox_render_slice(struct voxscape *vox, int n)
 	z = vox->znear + n;
 
 	len = vox->slicelen[n] >> 8;
-	xstep = (((COS(vox->angle) >> 4) * len) >> 4) / FBWIDTH;
-	ystep = (((SIN(vox->angle) >> 4) * len) >> 4) / FBWIDTH;
+	xstep = (((COS(vox->angle) >> 4) * len) >> 4) / (FBWIDTH / 2);
+	ystep = (((SIN(vox->angle) >> 4) * len) >> 4) / (FBWIDTH / 2);
 
-	x = vox->x - SIN(vox->angle) * z - xstep * (FBWIDTH / 2);
-	y = vox->y + COS(vox->angle) * z - ystep * (FBWIDTH / 2);
+	x = vox->x - SIN(vox->angle) * z - xstep * (FBWIDTH / 4);
+	y = vox->y + COS(vox->angle) * z - ystep * (FBWIDTH / 4);
 
-	for(i=1; i<FBWIDTH / 2; i++) {
-		col = i * 2;
+	for(i=0; i<FBWIDTH/2; i++) {
+		col = i << 1;
 		offs = (((y >> 16) & YMASK) << XSHIFT) + ((x >> 16) & XMASK);
 		if(offs == last_offs) {
 			hval = last_hval;
@@ -294,39 +298,11 @@ void vox_render_slice(struct voxscape *vox, int n)
 		if(hval > vox->coltop[col]) {
 			colstart = FBHEIGHT - hval;
 			colheight = hval - vox->coltop[col];
-			fbptr = vox->fb + colstart * (FBWIDTH / 2) + i;
+			fbptr = vox->fb + colstart * (FBPITCH / 2) + i;
 
 			for(j=0; j<colheight; j++) {
-				*fbptr |= color;
-				fbptr += FBWIDTH / 2;
-			}
-			vox->coltop[col] = hval;
-		}
-		x += xstep;
-		y += ystep;
-
-		col++;
-		offs = (((y >> 16) & YMASK) << XSHIFT) + ((x >> 16) & XMASK);
-		if(offs == last_offs) {
-			hval = last_hval;
-			color = last_col;
-		} else {
-			hval = vox->height[offs] - vox->vheight;
-			hval = hval * HSCALE / (vox->znear + n) + vox->horizon;
-			if(hval > FBHEIGHT) hval = FBHEIGHT;
-			color = vox->color[offs];
-			last_offs = offs;
-			last_hval = hval;
-			last_col = color;
-		}
-		if(hval > vox->coltop[col]) {
-			colstart = FBHEIGHT - hval;
-			colheight = hval - vox->coltop[col];
-			fbptr = vox->fb + colstart * (FBWIDTH / 2) + i;
-
-			for(j=0; j<colheight; j++) {
-				*fbptr |= ((uint16_t)color << 8);
-				fbptr += FBWIDTH / 2;
+				*fbptr = color | ((uint16_t)color << 8);
+				fbptr += FBPITCH / 2;
 			}
 			vox->coltop[col] = hval;
 		}
@@ -338,37 +314,24 @@ void vox_render_slice(struct voxscape *vox, int n)
 ARM_IWRAM
 void vox_sky_solid(struct voxscape *vox, uint8_t color)
 {
-	int i, j, colh0, colh1, colhboth;
+	int i, j, colheight;
 	uint16_t *fbptr;
 
-	for(i=1; i<FBWIDTH / 2; i++) {
+	for(i=0; i<FBWIDTH / 2; i++) {
 		fbptr = vox->fb + i;
-		colh0 = FBHEIGHT - vox->coltop[i << 1];
-		colh1 = FBHEIGHT - vox->coltop[(i << 1) + 1];
-		colhboth = colh0 < colh1 ? colh0 : colh1;
+		colheight = FBHEIGHT - vox->coltop[i << 1];
 
-		for(j=0; j<colhboth; j++) {
+		for(j=0; j<colheight; j++) {
 			*fbptr = color | ((uint16_t)color << 8);
-			fbptr += FBWIDTH / 2;
-		}
-
-		if(colh0 > colh1) {
-			for(j=colhboth; j<colh0; j++) {
-				*fbptr |= color;
-				fbptr += FBWIDTH / 2;
-			}
-		} else {
-			for(j=colhboth; j<colh1; j++) {
-				*fbptr |= (uint16_t)color << 8;
-				fbptr += FBWIDTH / 2;
-			}
+			fbptr += FBPITCH / 2;
 		}
 	}
 }
 
+ARM_IWRAM
 void vox_sky_grad(struct voxscape *vox, uint8_t chor, uint8_t ctop)
 {
-	int i, j, colh0, colh1, colhboth, t;
+	int i, j, colheight, t;
 	int d = FBHEIGHT - vox->horizon;
 	uint8_t grad[FBHEIGHT];
 	uint16_t *fbptr;
@@ -381,27 +344,13 @@ void vox_sky_grad(struct voxscape *vox, uint8_t chor, uint8_t ctop)
 		grad[i] = chor;
 	}
 
-	for(i=1; i<FBWIDTH / 2; i++) {
+	for(i=0; i<FBWIDTH / 2; i++) {
 		fbptr = vox->fb + i;
-		colh0 = FBHEIGHT - vox->coltop[i << 1];
-		colh1 = FBHEIGHT - vox->coltop[(i << 1) + 1];
-		colhboth = colh0 < colh1 ? colh0 : colh1;
+		colheight = FBHEIGHT - vox->coltop[i << 1];
 
-		for(j=0; j<colhboth; j++) {
+		for(j=0; j<colheight; j++) {
 			*fbptr = grad[j] | ((uint16_t)grad[j] << 8);
-			fbptr += FBWIDTH / 2;
-		}
-
-		if(colh0 > colh1) {
-			for(j=colhboth; j<colh0; j++) {
-				*fbptr |= grad[j];
-				fbptr += FBWIDTH / 2;
-			}
-		} else {
-			for(j=colhboth; j<colh1; j++) {
-				*fbptr |= (uint16_t)grad[j] << 8;
-				fbptr += FBWIDTH / 2;
-			}
+			fbptr += FBPITCH / 2;
 		}
 	}
 }

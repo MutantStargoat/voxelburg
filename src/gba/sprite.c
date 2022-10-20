@@ -15,16 +15,18 @@ void spr_setup(int xtiles, int ytiles, unsigned char *pixels, unsigned char *cma
 		for(j=0; j<8; j++) {
 			*dst++ = src[j * 64];
 			*dst++ = src[j * 64 + 1];
+			*dst++ = src[j * 64 + 2];
+			*dst++ = src[j * 64 + 3];
 		}
-		src += 2;
+		src += 4;
 
-		if((i & 31) == 31) {
+		if((i & 15) == 15) {
 			src += 7 * 64;	/* skip to the next row of tiles (skip 7 rows of pixels) */
 		}
 	}
 
 	cptr = (uint16_t*)CRAM_OBJ_ADDR;
-	for(i=0; i<16; i++) {
+	for(i=0; i<128; i++) {
 		unsigned char r = *cmap++ >> 3;
 		unsigned char g = *cmap++ >> 3;
 		unsigned char b = *cmap++ >> 3;

@@ -7,10 +7,13 @@
 #define CONV_RGB24_RGB15(r, g, b) \
 	(((r) >> 3) | (((uint16_t)(g) & 0xf8) << 2) | (((uint16_t)(b) & 0xf8) << 7))
 
-#define VOX_SZ	256
+#define VOX_SZ	512
 
 extern unsigned char color_pixels[];
 extern unsigned char color_cmap[];
 extern unsigned char height_pixels[];
+
+extern unsigned char spr_game_pixels[];
+extern unsigned char spr_game_cmap[];
 
 #endif	/* DATA_H_ */
