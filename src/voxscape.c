@@ -59,6 +59,8 @@ struct voxscape {
 	unsigned int valid;
 };
 
+int vox_quality = 1;
+
 struct voxscape *vox_create(int xsz, int ysz, uint8_t *himg, uint8_t *cimg)
 {
 	struct voxscape *vox;
@@ -219,10 +221,11 @@ void vox_proj(struct voxscape *vox, int fov, int znear, int zfar)
 	vox->zfar = zfar;
 
 	vox->nslices = vox->zfar - vox->znear;
-	free(vox->slicelen);
-	if(!(vox->slicelen = iwram_sbrk(vox->nslices * sizeof *vox->slicelen))) {
-		panic(get_pc(), "vox_proj: failed to allocate slice length table (%d)\n", vox->nslices);
-		return;
+	if(!vox->slicelen) {
+		if(!(vox->slicelen = iwram_sbrk(vox->nslices * sizeof *vox->slicelen))) {
+			panic(get_pc(), "vox_proj: failed to allocate slice length table (%d)\n", vox->nslices);
+			return;
+		}
 	}
 
 	vox->valid &= ~SLICELEN;
@@ -239,11 +242,18 @@ void vox_render(struct voxscape *vox)
 	int i;
 
 	vox_begin(vox);
-	for(i=0; i<vox->nslices; i++) {
-		/*if(i >= 10 && (i & 1) == 0) {
-			continue;
-		}*/
-		vox_render_slice(vox, i);
+
+	if(vox_quality) {
+		for(i=0; i<vox->nslices; i++) {
+			vox_render_slice(vox, i);
+		}
+	} else {
+		for(i=0; i<vox->nslices; i++) {
+			if(i >= 10 && (i & 1) == 0) {
+				continue;
+			}
+			vox_render_slice(vox, i);
+		}
 	}
 }
 

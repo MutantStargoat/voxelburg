@@ -16,15 +16,14 @@ enum {
 	BN_LT		= 0x0200
 };
 
-#define BN_DPAD	(BN_RIGHT | BN_LEFT | BN_UP | BN_DOWN)
+#define KEYPRESS(key)	((keystate & (key)) && (keydelta & (key)))
+#define KEYRELEASE(key)	((keystate & (key)) == 0 && (keydelta & (key)))
 
-void select_input(uint16_t bmask);
-uint16_t get_input(void);
+volatile uint16_t keystate, keydelta;
 
-#ifdef BUILD_GBA
-#define read_input()	(~REG_KEYINPUT)
-#else
-#define read_input()	get_input()
-#endif
+/*void key_repeat(int start, int rep, uint16_t mask);*/
+
+void update_keyb(void);
+
 
 #endif	/* INPUT_H_ */

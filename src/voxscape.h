@@ -10,6 +10,8 @@ enum {
 
 struct voxscape;
 
+extern int vox_quality;
+
 struct voxscape *vox_create(int xsz, int ysz, uint8_t *himg, uint8_t *cimg);
 void vox_free(struct voxscape *vox);
 

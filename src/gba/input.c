@@ -1,39 +1,52 @@
 #include "input.h"
 #include "gbaregs.h"
-#include "intr.h"
+#include "util.h"
 
-static void keyintr(void);
+/*
+#define NUM_KEYS	10
 
-static uint16_t bnstate;
+static int rep_start, rep_rep;
+static unsigned long first_press[16], last_press[16];
+static uint16_t repmask;
 
-void select_input(uint16_t bmask)
+void key_repeat(int start, int rep, uint16_t mask)
 {
-	bnstate = 0;
+	rep_start = start;
+	rep_rep = rep;
+	repmask = mask;
+}
+*/
 
-	mask(INTR_KEY);
-	if(bmask) {
-		REG_KEYCNT = bmask | KEYCNT_IE;
-		interrupt(INTR_KEY, keyintr);
-		unmask(INTR_KEY);
-	} else {
-		REG_KEYCNT = 0;
-		interrupt(INTR_KEY, 0);
+void update_keyb(void)
+{
+	static uint16_t prevstate;
+	/*
+	int i;
+	unsigned long msec = timer_msec;
+	*/
+
+	//keystate = (~REG_KEYINPUT & 0x3ff);
+	keydelta = keystate ^ prevstate;
+	prevstate = keystate;
+
+	/*
+	for(i=0; i<NUM_KEYS; i++) {
+		uint16_t bit = 1 << i;
+		if(!(bit & repmask)) {
+			continue;
+		}
+
+		if(keystate & bit) {
+			if(keydelta & bit) {
+				first_press[i] = msec;
+			} else {
+				if(msec - first_press[i] >= rep_start && msec - last_press[i] >= rep_rep) {
+					keydelta |= bit;
+					last_press[i] = msec;
+				}
+			}
+		}
 	}
+	*/
 }
 
-uint16_t get_input(void)
-{
-	uint16_t s;
-
-	mask(INTR_KEY);
-	s = bnstate;
-	bnstate = 0;
-	unmask(INTR_KEY);
-
-	return s;
-}
-
-static void keyintr(void)
-{
-	bnstate |= ~REG_KEYINPUT;
-}

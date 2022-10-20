@@ -14,6 +14,10 @@
 #include "voxscape.h"
 #include "data.h"
 
+#define FOV		30
+#define NEAR	2
+#define FAR		85
+
 static int gamescr_start(void);
 static void gamescr_stop(void);
 static void gamescr_frame(void);
@@ -35,7 +39,7 @@ static uint16_t *framebuf;
 static int nframes, backbuf;
 static uint16_t *vram[] = { gba_vram_lfb0, gba_vram_lfb1 };
 
-static int32_t pos[2], angle;
+static int32_t pos[2], angle, horizon = 80;
 static struct voxscape *vox;
 
 #define COLOR_HORIZON	192
@@ -63,7 +67,8 @@ static int gamescr_start(void)
 	if(!(vox = vox_create(VOX_SZ, VOX_SZ, height_pixels, color_pixels))) {
 		panic(get_pc(), "vox_create");
 	}
-	vox_proj(vox, 30, 2, 85);
+	vox_proj(vox, FOV, NEAR, FAR);
+	vox_view(vox, pos[0], pos[1], -40, angle);
 
 	/* setup color image palette */
 	for(i=0; i<256; i++) {
@@ -109,7 +114,7 @@ static void gamescr_frame(void)
 	backbuf = ++nframes & 1;
 	framebuf = vram[backbuf];
 
-	vox_framebuf(vox, 240, 160, framebuf, -1);
+	vox_framebuf(vox, 240, 160, framebuf, horizon);
 
 	update();
 	draw();
@@ -130,19 +135,23 @@ static void gamescr_frame(void)
 
 #define WALK_SPEED	0x40000
 #define TURN_SPEED	0x200
-
-static volatile uint16_t input;
+#define ELEV_SPEED	8
 
 static void update(void)
 {
 	int32_t fwd[2], right[2];
 
-	if((input = read_input())) {
+	update_keyb();
 
-		if(input & BN_LEFT) {
+	if(KEYPRESS(BN_SELECT)) {
+		vox_quality ^= 1;
+	}
+
+	if(keystate) {
+		if(keystate & BN_LEFT) {
 			angle += TURN_SPEED;
 		}
-		if(input & BN_RIGHT) {
+		if(keystate & BN_RIGHT) {
 			angle -= TURN_SPEED;
 		}
 
@@ -151,19 +160,27 @@ static void update(void)
 		right[0] = fwd[1];
 		right[1] = -fwd[0];
 
-		if(input & BN_UP) {
+		if(keystate & BN_A) {
 			pos[0] += fwd[0];
 			pos[1] += fwd[1];
 		}
-		if(input & BN_DOWN) {
+		/*
+		if(keystate & BN_DOWN) {
 			pos[0] -= fwd[0];
 			pos[1] -= fwd[1];
 		}
-		if(input & BN_RT) {
+		*/
+		if(keystate & BN_UP) {
+			if(horizon > 40) horizon -= ELEV_SPEED;
+		}
+		if(keystate & BN_DOWN) {
+			if(horizon < 200 - ELEV_SPEED) horizon += ELEV_SPEED;
+		}
+		if(keystate & BN_RT) {
 			pos[0] += right[0];
 			pos[1] += right[1];
 		}
-		if(input & BN_LT) {
+		if(keystate & BN_LT) {
 			pos[0] -= right[0];
 			pos[1] -= right[1];
 		}
@@ -203,14 +220,16 @@ static void gamescr_vblank(void)
 	REG_BG2PC = -sa;
 	REG_BG2PD = ca;
 
-	if((input & (BN_LEFT | BN_RIGHT)) == 0) {
+	keystate = ~REG_KEYINPUT;
+
+	if((keystate & (BN_LEFT | BN_RIGHT)) == 0) {
 		if(bank) {
 			bank -= bankdir << 4;
 		}
-	} else if(input & BN_LEFT) {
+	} else if(keystate & BN_LEFT) {
 		bankdir = -1;
 		if(bank > -MAXBANK) bank -= 16;
-	} else if(input & BN_RIGHT) {
+	} else if(keystate & BN_RIGHT) {
 		bankdir = 1;
 		if(bank < MAXBANK) bank += 16;
 	}
