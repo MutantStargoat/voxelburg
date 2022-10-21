@@ -59,9 +59,8 @@ struct voxscape {
 	unsigned int valid;
 };
 
-static int *projtab;
-
 int vox_quality = 1;
+int *projlut;
 
 struct voxscape *vox_create(int xsz, int ysz, uint8_t *himg, uint8_t *cimg)
 {
@@ -193,7 +192,6 @@ void vox_framebuf(struct voxscape *vox, int xres, int yres, void *fb, int horizo
 	if(xres != vox->fbwidth) {
 		if(!(vox->coltop = iwram_sbrk(xres * sizeof *vox->coltop))) {
 			panic(get_pc(), "vox_framebuf: failed to allocate column table (%d)\n", xres);
-			return;
 		}
 	}
 	vox->fb = fb;
@@ -227,8 +225,8 @@ void vox_proj(struct voxscape *vox, int fov, int znear, int zfar)
 		if(!(vox->slicelen = iwram_sbrk(vox->nslices * sizeof *vox->slicelen))) {
 			panic(get_pc(), "vox_proj: failed to allocate slice length table (%d)\n", vox->nslices);
 		}
-		if(!(projtab = iwram_sbrk(vox->nslices * sizeof *projtab))) {
-			panic(get_pc(), "vox_proj: failed to allocate projection table (%d)\n", vox->nslices);
+		if(!(projlut = iwram_sbrk(vox->nslices * sizeof *projlut))) {
+			panic(get_pc(), "vox_framebuf: failed to allocate projection table (%d)\n", vox->nslices);
 		}
 	}
 
@@ -272,7 +270,7 @@ void vox_begin(struct voxscape *vox)
 		float theta = (float)vox->fov * M_PI / 360.0f;	/* half angle */
 		for(i=0; i<vox->nslices; i++) {
 			vox->slicelen[i] = (int32_t)((vox->znear + i) * tan(theta) * 4.0f * 65536.0f);
-			projtab[i] = (HSCALE << 8) / (vox->znear + i);
+			projlut[i] = (HSCALE << 8) / (vox->znear + i);
 		}
 		vox->valid |= SLICELEN;
 	}
@@ -285,6 +283,7 @@ void vox_render_slice(struct voxscape *vox, int n)
 	int32_t x, y, len, xstep, ystep;
 	uint8_t color, last_col;
 	uint16_t *fbptr;
+	int proj;
 
 	z = vox->znear + n;
 
@@ -295,6 +294,8 @@ void vox_render_slice(struct voxscape *vox, int n)
 	x = vox->x - SIN(vox->angle) * z - xstep * (FBWIDTH / 4);
 	y = vox->y + COS(vox->angle) * z - ystep * (FBWIDTH / 4);
 
+	/*proj = (HSCALE << 8) / (vox->znear + n);*/
+
 	for(i=0; i<FBWIDTH/2; i++) {
 		col = i << 1;
 		offs = (((y >> 16) & YMASK) << XSHIFT) + ((x >> 16) & XMASK);
@@ -303,8 +304,7 @@ void vox_render_slice(struct voxscape *vox, int n)
 			color = last_col;
 		} else {
 			hval = vox->height[offs] - vox->vheight;
-			/*hval = hval * HSCALE / (vox->znear + n) + vox->horizon;*/
-			hval = ((hval * projtab[n]) >> 8) + vox->horizon;
+			hval = ((hval * projlut[n]) >> 8) + vox->horizon;
 			if(hval > FBHEIGHT) hval = FBHEIGHT;
 			color = vox->color[offs];
 			last_offs = offs;

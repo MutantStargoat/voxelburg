@@ -204,13 +204,19 @@ static void draw(void)
 ARM_IWRAM
 static void gamescr_vblank(void)
 {
-	static int bank, bankdir, theta, scale;
+	static int bank, bankdir, theta, s;
 	int32_t sa, ca;
 
 	theta = -(bank << 3);
-	scale = MAXBANK + (abs(bank) >> 3);
-	sa = SIN(theta) / scale;
-	ca = COS(theta) / scale;
+#if 0
+	s = 0x100000 / (MAXBANK + (abs(bank) >> 3));
+	sa = ((SIN(theta) >> 8) * s) >> 12;
+	ca = ((COS(theta) >> 8) * s) >> 12;
+#else
+	s = (MAXBANK + (abs(bank) >> 3));
+	sa = SIN(theta) / s;
+	ca = COS(theta) / s;
+#endif
 
 	REG_BG2X = -ca * 120 - sa * 80 + (120 << 8);
 	REG_BG2Y = sa * 120 - ca * 80 + (80 << 8);
