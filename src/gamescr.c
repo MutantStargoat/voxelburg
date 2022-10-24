@@ -6,11 +6,9 @@
 #include "util.h"
 #include "intr.h"
 #include "input.h"
-#include "player.h"
 #include "gba.h"
 #include "sprite.h"
 #include "debug.h"
-#include "level.h"
 #include "voxscape.h"
 #include "data.h"
 
