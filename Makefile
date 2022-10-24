@@ -64,6 +64,9 @@ tools/vistab: tools/vistab.c
 tools/mmutil/mmutil:
 	$(MAKE) -C tools/mmutil
 
+#data/spr_game.raw: data/spr_ui.png data/spr_hud.png
+#	tools/pngdump/pngdump -o $@ -n $^
+
 %.sraw: %.png tools/pngdump/pngdump
 	tools/pngdump/pngdump -o $@ -oc $(subst .sraw,.spal,$@) -os $(subst .sraw,.shade,$@) -s 8 $<
 

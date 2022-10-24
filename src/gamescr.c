@@ -45,9 +45,13 @@ static struct voxscape *vox;
 #define COLOR_HORIZON	192
 #define COLOR_ZENITH	255
 
-#define MAX_SPR		8
+#define MAX_SPR		32
 static uint16_t oam[4 * MAX_SPR];
+static int dynspr_base, dynspr_count;
 
+static int num_tur, total_tur;
+static int energy;
+#define MAX_ENERGY	5
 
 struct screen *init_game_screen(void)
 {
@@ -56,7 +60,7 @@ struct screen *init_game_screen(void)
 
 static int gamescr_start(void)
 {
-	int i;
+	int i, sidx;
 
 	gba_setmode(4, DISPCNT_BG2 | DISPCNT_OBJ | DISPCNT_FB1);
 
@@ -85,20 +89,29 @@ static int gamescr_start(void)
 	intr_enable();
 	*/
 
-	spr_setup(16, 2, spr_game_pixels, spr_game_cmap);
-
+	spr_setup(16, 8, spr_game_pixels, spr_game_cmap);
 	wait_vblank();
 	spr_clear();
-	spr_oam(oam, 0, 516, 0, 144, SPR_SZ16 | SPR_256COL);
-	spr_oam(oam, 1, 516, 16, 144, SPR_SZ16 | SPR_256COL);
-	spr_oam(oam, 2, 516, 32, 144, SPR_SZ16 | SPR_256COL);
-	spr_oam(oam, 3, 520, 48, 144, SPR_SZ16 | SPR_256COL);
 
-	spr_oam(oam, 4, 512, 176, 144, SPR_SZ16 | SPR_256COL);
-	spr_oam(oam, 5, 516, 192, 144, SPR_SZ16 | SPR_256COL);
-	spr_oam(oam, 6, 516, 208, 144, SPR_SZ16 | SPR_256COL);
-	spr_oam(oam, 7, 516, 224, 144, SPR_SZ16 | SPR_256COL);
-	dma_copy16(3, (void*)OAM_ADDR, oam, sizeof oam / 2, 0);
+	for(i=0; i<MAX_SPR; i++) {
+		spr_oam_clear(oam, i);
+	}
+
+	sidx = 0;
+	spr_oam(oam, sidx++, SPRID_CROSS, 120-8, 80-8, SPR_SZ16 | SPR_256COL);
+	spr_oam(oam, sidx++, SPRID_UIMID, 0, 144, SPR_VRECT | SPR_256COL);
+	spr_oam(oam, sidx++, SPRID_UIRIGHT, 48, 144, SPR_SZ16 | SPR_256COL);
+	spr_oam(oam, sidx++, SPRID_UILEFT, 168, 144, SPR_SZ16 | SPR_256COL);
+	spr_oam(oam, sidx++, SPRID_UITGT, 184, 144, SPR_SZ16 | SPR_256COL);
+	spr_oam(oam, sidx++, SPRID_UISLASH, 216, 144, SPR_VRECT | SPR_256COL);
+	dynspr_base = sidx;
+
+	wait_vblank();
+	dma_copy32(3, (void*)OAM_ADDR, oam, sidx * 2, 0);
+
+	num_tur = 0;
+	total_tur = 16;
+	energy = 5;
 
 	nframes = 0;
 	return 0;
@@ -133,6 +146,18 @@ static void gamescr_frame(void)
 #endif
 }
 
+#define NS(x)	(SPRID_UINUM + ((x) << 1))
+static int numspr[][2] = {
+	{NS(0),NS(0)}, {NS(0),NS(1)}, {NS(0),NS(2)}, {NS(0),NS(3)}, {NS(0),NS(4)},
+	{NS(0),NS(5)}, {NS(0),NS(6)}, {NS(0),NS(7)}, {NS(0),NS(8)}, {NS(0),NS(9)},
+	{NS(1),NS(0)}, {NS(1),NS(1)}, {NS(1),NS(2)}, {NS(1),NS(3)}, {NS(1),NS(4)},
+	{NS(1),NS(5)}, {NS(1),NS(6)}, {NS(1),NS(7)}, {NS(1),NS(8)}, {NS(1),NS(9)},
+	{NS(2),NS(0)}, {NS(2),NS(1)}, {NS(2),NS(2)}, {NS(2),NS(3)}, {NS(2),NS(4)},
+	{NS(2),NS(5)}, {NS(2),NS(6)}, {NS(2),NS(7)}, {NS(2),NS(8)}, {NS(2),NS(9)},
+	{NS(3),NS(0)}, {NS(3),NS(1)}, {NS(3),NS(2)}, {NS(3),NS(3)}, {NS(3),NS(4)},
+	{NS(3),NS(5)}, {NS(3),NS(6)}, {NS(3),NS(7)}, {NS(3),NS(8)}, {NS(3),NS(9)}
+};
+
 #define WALK_SPEED	0x40000
 #define TURN_SPEED	0x200
 #define ELEV_SPEED	8
@@ -140,6 +165,7 @@ static void gamescr_frame(void)
 static void update(void)
 {
 	int32_t fwd[2], right[2];
+	int i, ledspr;
 
 	update_keyb();
 
@@ -187,12 +213,29 @@ static void update(void)
 
 		vox_view(vox, pos[0], pos[1], -40, angle);
 	}
+
+	/* turrets number */
+	spr_oam(oam, dynspr_base, numspr[num_tur][0], 200, 144, SPR_VRECT | SPR_256COL);
+	spr_oam(oam, dynspr_base + 1, numspr[num_tur][1], 208, 144, SPR_VRECT | SPR_256COL);
+	spr_oam(oam, dynspr_base + 2, numspr[total_tur][0], 224, 144, SPR_VRECT | SPR_256COL);
+	spr_oam(oam, dynspr_base + 3, numspr[total_tur][1], 232, 144, SPR_VRECT | SPR_256COL);
+	/* energy bar */
+	if(energy == MAX_ENERGY) {
+		ledspr = SPRID_LEDBLU;
+	} else {
+		ledspr = energy > 2 ? SPRID_LEDGRN : SPRID_LEDRED;
+	}
+	for(i=0; i<5; i++) {
+		spr_oam(oam, dynspr_base + i + 4, i >= energy ? SPRID_LEDOFF : ledspr,
+				8 + (i << 3), 144, SPR_VRECT | SPR_256COL);
+	}
+	dynspr_count = 9;
 }
 
 static void draw(void)
 {
-	dma_fill16(3, framebuf, 0, 240 * 160 / 2);
-	//fillblock_16byte(framebuf, 0, 240 * 160 / 16);
+	//dma_fill16(3, framebuf, 0, 240 * 160 / 2);
+	fillblock_16byte(framebuf, 0, 240 * 160 / 16);
 
 	vox_render(vox);
 	//vox_sky_grad(vox, COLOR_HORIZON, COLOR_ZENITH);
@@ -206,6 +249,10 @@ static void gamescr_vblank(void)
 {
 	static int bank, bankdir, theta, s;
 	int32_t sa, ca;
+
+	if(!nframes) return;
+
+	dma_copy32(3, (void*)(OAM_ADDR + dynspr_base * 8), oam + dynspr_base * 4, dynspr_count * 2, 0);
 
 	theta = -(bank << 3);
 #if 0

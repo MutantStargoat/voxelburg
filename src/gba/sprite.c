@@ -26,7 +26,7 @@ void spr_setup(int xtiles, int ytiles, unsigned char *pixels, unsigned char *cma
 	}
 
 	cptr = (uint16_t*)CRAM_OBJ_ADDR;
-	for(i=0; i<128; i++) {
+	for(i=0; i<256; i++) {
 		unsigned char r = *cmap++ >> 3;
 		unsigned char g = *cmap++ >> 3;
 		unsigned char b = *cmap++ >> 3;
