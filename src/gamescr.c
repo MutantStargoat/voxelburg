@@ -87,7 +87,7 @@ static int gamescr_start(void)
 	intr_enable();
 	*/
 
-	spr_setup(16, 8, spr_game_pixels, spr_game_cmap);
+	spr_setup(16, 16, spr_game_pixels, spr_game_cmap);
 	wait_vblank();
 	spr_clear();
 
@@ -163,7 +163,7 @@ static int numspr[][2] = {
 static void update(void)
 {
 	int32_t fwd[2], right[2];
-	int i, ledspr;
+	int i, snum, ledspr;
 
 	update_keyb();
 
@@ -212,11 +212,12 @@ static void update(void)
 		vox_view(vox, pos[0], pos[1], -40, angle);
 	}
 
+	snum = 0;
 	/* turrets number */
-	spr_oam(oam, dynspr_base, numspr[num_tur][0], 200, 144, SPR_VRECT | SPR_256COL);
-	spr_oam(oam, dynspr_base + 1, numspr[num_tur][1], 208, 144, SPR_VRECT | SPR_256COL);
-	spr_oam(oam, dynspr_base + 2, numspr[total_tur][0], 224, 144, SPR_VRECT | SPR_256COL);
-	spr_oam(oam, dynspr_base + 3, numspr[total_tur][1], 232, 144, SPR_VRECT | SPR_256COL);
+	spr_oam(oam, dynspr_base + snum++, numspr[num_tur][0], 200, 144, SPR_VRECT | SPR_256COL);
+	spr_oam(oam, dynspr_base + snum++, numspr[num_tur][1], 208, 144, SPR_VRECT | SPR_256COL);
+	spr_oam(oam, dynspr_base + snum++, numspr[total_tur][0], 224, 144, SPR_VRECT | SPR_256COL);
+	spr_oam(oam, dynspr_base + snum++, numspr[total_tur][1], 232, 144, SPR_VRECT | SPR_256COL);
 	/* energy bar */
 	if(energy == MAX_ENERGY) {
 		ledspr = SPRID_LEDBLU;
@@ -224,10 +225,15 @@ static void update(void)
 		ledspr = energy > 2 ? SPRID_LEDGRN : SPRID_LEDRED;
 	}
 	for(i=0; i<5; i++) {
-		spr_oam(oam, dynspr_base + i + 4, i >= energy ? SPRID_LEDOFF : ledspr,
+		spr_oam(oam, dynspr_base + snum++, i >= energy ? SPRID_LEDOFF : ledspr,
 				8 + (i << 3), 144, SPR_VRECT | SPR_256COL);
 	}
-	dynspr_count = 9;
+	/* enemy sprites */
+	spr_oam(oam, dynspr_base + snum++, SPRID_ENEMY, 50, 50, SPR_VRECT | SPR_SZ64 | SPR_256COL);
+
+	mask(INTR_VBLANK);
+	dynspr_count = snum;
+	unmask(INTR_VBLANK);
 }
 
 static void draw(void)
@@ -240,6 +246,12 @@ static void draw(void)
 	//vox_sky_solid(vox, COLOR_ZENITH);
 }
 
+#define OFFS(x, y)	((y) * 128 + (x))
+static short enemy_frame_offs[] = {
+	OFFS(0, 128), OFFS(32, 128), OFFS(64, 128), OFFS(96, 128),
+	OFFS(0, 192), OFFS(32, 192), OFFS(64, 192), OFFS(96, 192)
+};
+
 #define MAXBANK		0x100
 
 ARM_IWRAM
@@ -247,8 +259,24 @@ static void gamescr_vblank(void)
 {
 	static int bank, bankdir, theta, s;
 	int32_t sa, ca;
+	uint16_t *src, *dst;
+	int i;
 
 	if(!nframes) return;
+
+	/* TODO: pre-arrange sprite tiles in gba-native format, so that I can just
+	 * DMA them from cartridge easily
+	 */
+
+	/*
+	src = (void*)(spr_game_pixels + enemy_frame_offs[1]);
+	dst = (void*)(VRAM_LFB_OBJ_ADDR + SPRID(0, 64));
+	for(i=0; i<64; i++) {
+		dma_copy32(3, dst, src, 32 / 4, 0);
+		dst += 32 / 2;
+		src += 128 / 2;
+	}
+	*/
 
 	dma_copy32(3, (void*)(OAM_ADDR + dynspr_base * 8), oam + dynspr_base * 4, dynspr_count * 2, 0);
 
