@@ -10,6 +10,12 @@ enum {
 
 struct voxscape;
 
+struct vox_object {
+	int x, y, px, py;
+	int offs;
+	int32_t scale;
+};
+
 extern int vox_quality;
 
 struct voxscape *vox_create(int xsz, int ysz, uint8_t *himg, uint8_t *cimg);
@@ -36,5 +42,7 @@ void vox_render_slice(struct voxscape *vox, int n);
 
 void vox_sky_solid(struct voxscape *vox, uint8_t color);
 void vox_sky_grad(struct voxscape *vox, uint8_t chor, uint8_t ctop);
+
+void vox_objects(struct voxscape *vox, struct vox_object *ptr, int count, int stride);
 
 #endif	/* VOXSCAPE_H_ */

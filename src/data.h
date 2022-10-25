@@ -24,7 +24,9 @@ enum {
 	SPRID_LEDRED	= SPRID(40, 16),
 	SPRID_LEDBLU	= SPRID(48, 16),
 	SPRID_LEDGRN	= SPRID(56, 16),
-	SPRID_ENEMY		= SPRID(0, 64)
+	/*SPRID_ENEMY		= SPRID(0, 64)*/
+	SPRID_ENEMY0	= SPRID(0, 32),
+	SPRID_HUSK		= SPRID(112, 64)
 };
 
 extern unsigned char color_pixels[];

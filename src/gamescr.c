@@ -32,6 +32,13 @@ static struct screen gamescr = {
 	gamescr_vblank
 };
 
+struct enemy {
+	struct vox_object vobj;
+	short hp;
+	short anm;
+	short last_fire;
+};
+
 static uint16_t *framebuf;
 
 static int nframes, backbuf;
@@ -47,9 +54,24 @@ static struct voxscape *vox;
 static uint16_t oam[4 * MAX_SPR];
 static int dynspr_base, dynspr_count;
 
-static int num_tur, total_tur;
+
+#define MAX_ENEMIES	64
+struct enemy enemies[MAX_ENEMIES];
+int num_enemies, total_enemies;
 static int energy;
 #define MAX_ENERGY	5
+
+
+#define XFORM_PIXEL_X(x, y)	(xform_ca * (x) - xform_sa * (y) + (120 << 8))
+#define XFORM_PIXEL_Y(x, y)	(xform_sa * (x) + xform_ca * (y) + (80 << 8))
+static int32_t xform_sa, xform_ca;	/* for viewport bank/zoom */
+static int xform_s;
+
+static short vblcount;
+
+
+static inline void xform_pixel(int *xp, int *yp);
+
 
 struct screen *init_game_screen(void)
 {
@@ -64,7 +86,9 @@ static int gamescr_start(void)
 
 	vblperf_setcolor(0);
 
-	pos[0] = pos[1] = VOX_SZ << 15;
+	pos[0] = VOX_SZ << 15;
+	pos[1] = (VOX_SZ << 15) + 0x100000;
+	angle = 0x8000;
 
 	if(!(vox = vox_create(VOX_SZ, VOX_SZ, height_pixels, color_pixels))) {
 		panic(get_pc(), "vox_create");
@@ -107,9 +131,20 @@ static int gamescr_start(void)
 	wait_vblank();
 	dma_copy32(3, (void*)OAM_ADDR, oam, sidx * 2, 0);
 
-	num_tur = 0;
-	total_tur = 16;
+	num_enemies = 0;
+	total_enemies = 8;
 	energy = 5;
+
+	srand(0);
+	for(i=0; i<total_enemies; i++) {
+		enemies[i].vobj.x = rand() % VOX_SZ;
+		enemies[i].vobj.y = rand() % VOX_SZ;
+		enemies[i].vobj.px = -1;
+		enemies[i].anm = rand() & 7;
+		enemies[i].hp = 2;
+		enemies[i].last_fire = 0;
+	}
+	vox_objects(vox, (struct vox_object*)enemies, total_enemies, sizeof *enemies);
 
 	nframes = 0;
 	return 0;
@@ -117,7 +152,6 @@ static int gamescr_start(void)
 
 static void gamescr_stop(void)
 {
-	/*mask(INTR_HBLANK);*/
 }
 
 static void gamescr_frame(void)
@@ -164,6 +198,7 @@ static void update(void)
 {
 	int32_t fwd[2], right[2];
 	int i, snum, ledspr;
+	struct enemy *enemy;
 
 	update_keyb();
 
@@ -188,12 +223,10 @@ static void update(void)
 			pos[0] += fwd[0];
 			pos[1] += fwd[1];
 		}
-		/*
-		if(keystate & BN_DOWN) {
+		if(keystate & BN_B) {
 			pos[0] -= fwd[0];
 			pos[1] -= fwd[1];
 		}
-		*/
 		if(keystate & BN_UP) {
 			if(horizon > 40) horizon -= ELEV_SPEED;
 		}
@@ -214,10 +247,10 @@ static void update(void)
 
 	snum = 0;
 	/* turrets number */
-	spr_oam(oam, dynspr_base + snum++, numspr[num_tur][0], 200, 144, SPR_VRECT | SPR_256COL);
-	spr_oam(oam, dynspr_base + snum++, numspr[num_tur][1], 208, 144, SPR_VRECT | SPR_256COL);
-	spr_oam(oam, dynspr_base + snum++, numspr[total_tur][0], 224, 144, SPR_VRECT | SPR_256COL);
-	spr_oam(oam, dynspr_base + snum++, numspr[total_tur][1], 232, 144, SPR_VRECT | SPR_256COL);
+	spr_oam(oam, dynspr_base + snum++, numspr[num_enemies][0], 200, 144, SPR_VRECT | SPR_256COL);
+	spr_oam(oam, dynspr_base + snum++, numspr[num_enemies][1], 208, 144, SPR_VRECT | SPR_256COL);
+	spr_oam(oam, dynspr_base + snum++, numspr[total_enemies][0], 224, 144, SPR_VRECT | SPR_256COL);
+	spr_oam(oam, dynspr_base + snum++, numspr[total_enemies][1], 232, 144, SPR_VRECT | SPR_256COL);
 	/* energy bar */
 	if(energy == MAX_ENERGY) {
 		ledspr = SPRID_LEDBLU;
@@ -229,7 +262,47 @@ static void update(void)
 				8 + (i << 3), 144, SPR_VRECT | SPR_256COL);
 	}
 	/* enemy sprites */
-	spr_oam(oam, dynspr_base + snum++, SPRID_ENEMY, 50, 50, SPR_VRECT | SPR_SZ64 | SPR_256COL);
+	/*spr_oam(oam, dynspr_base + snum++, SPRID_ENEMY, 50, 50, SPR_VRECT | SPR_SZ64 | SPR_256COL);*/
+	enemy = enemies;
+	for(i=0; i<total_enemies; i++) {
+		int sid, anm, px, py;
+		unsigned int flags;
+		int16_t mat[4];
+		int32_t sa, ca, scale;
+
+		if(enemy->vobj.px >= 0) {
+			flags = SPR_SZ32 | SPR_DBLSZ | SPR_256COL | SPR_ROTSCL | SPR_ROTSCL_SEL(0);
+			if(enemies->hp > 0) {
+				anm = (enemies->anm + (vblcount >> 3)) & 0xf;
+				sid = SPRID_ENEMY0 + ((anm & 7) << 2);
+				flags |= SPR_VRECT;
+			} else {
+				sid = SPRID_HUSK;
+			}
+
+			px = enemy->vobj.px - 120;
+			py = enemy->vobj.py - 80;
+			xform_pixel(&px, &py);
+
+			spr_oam(oam, dynspr_base + snum++, sid, px - 20, py - 32, flags);
+
+			scale = enemy->vobj.scale;
+			if(scale > 0x10000) scale = 0x10000;
+			sa = xform_sa / scale;
+			ca = xform_ca / scale;
+			mat[0] = anm >= 8 ? -ca : ca;
+			mat[1] = sa;
+			mat[2] = -sa;
+			mat[3] = ca;
+
+			spr_transform(oam, 0, mat);
+			enemy->vobj.px = -1;
+		}
+		enemy++;
+	}
+	for(i=snum; i<dynspr_count; i++) {
+		spr_oam_clear(oam, dynspr_base + i);
+	}
 
 	mask(INTR_VBLANK);
 	dynspr_count = snum;
@@ -246,21 +319,26 @@ static void draw(void)
 	//vox_sky_solid(vox, COLOR_ZENITH);
 }
 
-#define OFFS(x, y)	((y) * 128 + (x))
-static short enemy_frame_offs[] = {
-	OFFS(0, 128), OFFS(32, 128), OFFS(64, 128), OFFS(96, 128),
-	OFFS(0, 192), OFFS(32, 192), OFFS(64, 192), OFFS(96, 192)
-};
+static inline void xform_pixel(int *xp, int *yp)
+{
+	int32_t sa = xform_sa >> 8;
+	int32_t ca = xform_ca >> 8;
+	int x = *xp;
+	int y = *yp;
+
+	*xp = (ca * x - sa * y + (120 << 8)) >> 8;
+	*yp = (sa * x + ca * y + (80 << 8)) >> 8;
+}
 
 #define MAXBANK		0x100
 
 ARM_IWRAM
 static void gamescr_vblank(void)
 {
-	static int bank, bankdir, theta, s;
+	static int bank, bankdir, theta;
 	int32_t sa, ca;
-	uint16_t *src, *dst;
-	int i;
+
+	vblcount++;
 
 	if(!nframes) return;
 
@@ -268,27 +346,20 @@ static void gamescr_vblank(void)
 	 * DMA them from cartridge easily
 	 */
 
-	/*
-	src = (void*)(spr_game_pixels + enemy_frame_offs[1]);
-	dst = (void*)(VRAM_LFB_OBJ_ADDR + SPRID(0, 64));
-	for(i=0; i<64; i++) {
-		dma_copy32(3, dst, src, 32 / 4, 0);
-		dst += 32 / 2;
-		src += 128 / 2;
-	}
-	*/
-
-	dma_copy32(3, (void*)(OAM_ADDR + dynspr_base * 8), oam + dynspr_base * 4, dynspr_count * 2, 0);
+	/*dma_copy32(3, (void*)(OAM_ADDR + dynspr_base * 8), oam + dynspr_base * 4, MAX_SPR * 2, 0);*/
+	dma_copy32(3, (void*)OAM_ADDR, oam, MAX_SPR * 2, 0);
 
 	theta = -(bank << 3);
+	xform_sa = SIN(theta);
+	xform_ca = COS(theta);
 #if 0
-	s = 0x100000 / (MAXBANK + (abs(bank) >> 3));
-	sa = ((SIN(theta) >> 8) * s) >> 12;
-	ca = ((COS(theta) >> 8) * s) >> 12;
+	xform_s = 0x100000 / (MAXBANK + (abs(bank) >> 3));
+	sa = (((xform_sa) >> 8) * xform_s) >> 12;
+	ca = (((xform_ca) >> 8) * xform_s) >> 12;
 #else
-	s = (MAXBANK + (abs(bank) >> 3));
-	sa = SIN(theta) / s;
-	ca = COS(theta) / s;
+	xform_s = (MAXBANK + (abs(bank) >> 3));
+	sa = xform_sa / xform_s;
+	ca = xform_ca / xform_s;
 #endif
 
 	REG_BG2X = -ca * 120 - sa * 80 + (120 << 8);
@@ -313,35 +384,3 @@ static void gamescr_vblank(void)
 		if(bank < MAXBANK) bank += 16;
 	}
 }
-
-/*
-static uint16_t skygrad[] __attribute__((section(".data"))) = {
-
-	0x662a, 0x660a, 0x660a, 0x660b, 0x660b, 0x660b, 0x660b, 0x6a0b, 0x6a0c,
-	0x6a0c, 0x6a0c, 0x6a0c, 0x6a0c, 0x6a0d, 0x6a0d, 0x6a0d, 0x6a0d, 0x6a0d,
-	0x6a0d, 0x6a0e, 0x6e0e, 0x6e0e, 0x6e0e, 0x6e0e, 0x6e0f, 0x6e0f, 0x6e0f,
-	0x6e0f, 0x6e0f, 0x6e0f, 0x6e10, 0x6e10, 0x7210, 0x7210, 0x7210, 0x7211,
-	0x7211, 0x7211, 0x71f1, 0x71f1, 0x71f2, 0x71f2, 0x71f2, 0x71f2, 0x71f2,
-	0x75f2, 0x75f3, 0x75f3, 0x75f3, 0x75f3, 0x75f3, 0x75f4, 0x75f4, 0x75f4,
-	0x75f4, 0x75f4, 0x75f5, 0x79f5, 0x79f5, 0x79f5, 0x79f5, 0x79f5, 0x79f6,
-	0x79f6, 0x79f6, 0x79f6, 0x79f6, 0x79f7, 0x79f7, 0x79f7, 0x7df7, 0x7df7,
-	0x7df7, 0x7df8, 0x7df8, 0x7df8, 0x7dd8, 0x7dd8, 0x7dd9, 0x7dd9,
-
-	0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9,
-	0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9,
-	0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9,
-	0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9,
-	0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9,
-	0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9,
-	0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9,
-	0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9,
-	0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9, 0x7dd9
-};
-
-ARM_IWRAM
-static void hblank(void)
-{
-	int vcount = REG_VCOUNT;
-	gba_bgpal[255] = skygrad[vcount];
-}
-*/

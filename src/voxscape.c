@@ -57,6 +57,9 @@ struct voxscape {
 	uint8_t fogcolor;
 
 	unsigned int valid;
+
+	struct vox_object *obj;
+	int num_obj, obj_stride;
 };
 
 int vox_quality = 1;
@@ -284,6 +287,7 @@ void vox_render_slice(struct voxscape *vox, int n)
 	uint8_t color, last_col;
 	uint16_t *fbptr;
 	int proj;
+	struct vox_object *obj;
 
 	z = vox->znear + n;
 
@@ -321,6 +325,17 @@ void vox_render_slice(struct voxscape *vox, int n)
 				fbptr += FBPITCH / 2;
 			}
 			vox->coltop[col] = hval;
+
+			/* check to see if there's an object here */
+			obj = vox->obj;
+			for(j=0; j<vox->num_obj; j++) {
+				if(obj->offs == offs) {
+					obj->px = col;
+					obj->py = colstart;
+					obj->scale = projlut[n];
+				}
+				obj = (struct vox_object*)((char*)obj + vox->obj_stride);
+			}
 		}
 		x += xstep;
 		y += ystep;
@@ -368,5 +383,22 @@ void vox_sky_grad(struct voxscape *vox, uint8_t chor, uint8_t ctop)
 			*fbptr = grad[j] | ((uint16_t)grad[j] << 8);
 			fbptr += FBPITCH / 2;
 		}
+	}
+}
+
+void vox_objects(struct voxscape *vox, struct vox_object *ptr, int count, int stride)
+{
+	int i;
+	struct vox_object *obj;
+
+	vox->obj = ptr;
+	vox->num_obj = count;
+	vox->obj_stride = stride;
+
+	obj = ptr;
+	for(i=0; i<count; i++) {
+		obj->offs = obj->y * XSZ + obj->x;
+		emuprint("%d,%d -> %d", obj->x, obj->y, obj->offs);
+		obj = (struct vox_object*)((char*)obj + stride);
 	}
 }
