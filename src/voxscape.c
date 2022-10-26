@@ -6,6 +6,7 @@
 #include <assert.h>
 #include "voxscape.h"
 #include "debug.h"
+#include "data.h"
 
 /* hardcoded dimensions for the GBA */
 #define FBWIDTH		240
@@ -19,6 +20,8 @@
 #define YMASK		0x1ff
 #define HSCALE		40
 
+/* XXX */
+#define OBJ_STRIDE_SHIFT	5
 
 #define NO_LERP
 
@@ -286,7 +289,7 @@ void vox_render_slice(struct voxscape *vox, int n)
 	int32_t x, y, len, xstep, ystep;
 	uint8_t color, last_col;
 	uint16_t *fbptr;
-	int proj;
+	/*int proj;*/
 	struct vox_object *obj;
 
 	z = vox->znear + n;
@@ -327,14 +330,12 @@ void vox_render_slice(struct voxscape *vox, int n)
 			vox->coltop[col] = hval;
 
 			/* check to see if there's an object here */
-			obj = vox->obj;
-			for(j=0; j<vox->num_obj; j++) {
-				if(obj->offs == offs) {
-					obj->px = col;
-					obj->py = colstart;
-					obj->scale = projlut[n];
-				}
-				obj = (struct vox_object*)((char*)obj + vox->obj_stride);
+			if(color >= CMAP_SPAWN0) {
+				int idx = color - CMAP_SPAWN0;
+				obj = (struct vox_object*)((char*)vox->obj + (idx << OBJ_STRIDE_SHIFT));
+				obj->px = col;
+				obj->py = colstart;
+				obj->scale = projlut[n];
 			}
 		}
 		x += xstep;
@@ -391,6 +392,11 @@ void vox_objects(struct voxscape *vox, struct vox_object *ptr, int count, int st
 	int i;
 	struct vox_object *obj;
 
+	if(stride != 1 << OBJ_STRIDE_SHIFT) {
+		panic(get_pc(), "optimization requires %d byte vox obj (got %d)",
+				1 << OBJ_STRIDE_SHIFT, stride);
+	}
+
 	vox->obj = ptr;
 	vox->num_obj = count;
 	vox->obj_stride = stride;
@@ -398,7 +404,6 @@ void vox_objects(struct voxscape *vox, struct vox_object *ptr, int count, int st
 	obj = ptr;
 	for(i=0; i<count; i++) {
 		obj->offs = obj->y * XSZ + obj->x;
-		emuprint("%d,%d -> %d", obj->x, obj->y, obj->offs);
 		obj = (struct vox_object*)((char*)obj + stride);
 	}
 }

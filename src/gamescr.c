@@ -36,8 +36,9 @@ struct enemy {
 	struct vox_object vobj;
 	short hp;
 	short anm;
-	short last_fire;
+	int last_fire;
 };
+#define ENEMY_VALID(e)	((e)->anm != 0)
 
 static uint16_t *framebuf;
 
@@ -55,7 +56,7 @@ static uint16_t oam[4 * MAX_SPR];
 static int dynspr_base, dynspr_count;
 
 
-#define MAX_ENEMIES	64
+#define MAX_ENEMIES	(256 - CMAP_SPAWN0)
 struct enemy enemies[MAX_ENEMIES];
 int num_enemies, total_enemies;
 static int energy;
@@ -80,15 +81,15 @@ struct screen *init_game_screen(void)
 
 static int gamescr_start(void)
 {
-	int i, sidx;
+	int i, j, sidx;
+	uint8_t *cptr;
+	struct enemy *enemy;
 
 	gba_setmode(4, DISPCNT_BG2 | DISPCNT_OBJ | DISPCNT_FB1);
 
 	vblperf_setcolor(0);
 
-	pos[0] = VOX_SZ << 15;
-	pos[1] = (VOX_SZ << 15) + 0x100000;
-	angle = 0x8000;
+	pos[0] = pos[1] = VOX_SZ << 15;
 
 	if(!(vox = vox_create(VOX_SZ, VOX_SZ, height_pixels, color_pixels))) {
 		panic(get_pc(), "vox_create");
@@ -131,19 +132,43 @@ static int gamescr_start(void)
 	wait_vblank();
 	dma_copy32(3, (void*)OAM_ADDR, oam, sidx * 2, 0);
 
-	num_enemies = 0;
-	total_enemies = 8;
+	num_enemies = total_enemies = 0;
 	energy = 5;
 
 	srand(0);
-	for(i=0; i<total_enemies; i++) {
-		enemies[i].vobj.x = rand() % VOX_SZ;
-		enemies[i].vobj.y = rand() % VOX_SZ;
-		enemies[i].vobj.px = -1;
-		enemies[i].anm = rand() & 7;
-		enemies[i].hp = 2;
-		enemies[i].last_fire = 0;
+	cptr = color_pixels;
+	for(i=0; i<VOX_SZ; i++) {
+		for(j=0; j<VOX_SZ; j++) {
+			if(*cptr == 0) {
+				/* player spawn point */
+				pos[0] = j << 16;
+				pos[1] = i << 16;
+
+			} else if(*cptr >= CMAP_SPAWN0) {
+				/* enemy spawn point */
+				enemy = enemies + *cptr - CMAP_SPAWN0;
+				if(enemy->anm) {
+					panic(get_pc(), "double spawn at %d,%d", j, i);
+				}
+				enemy->vobj.x = j;
+				enemy->vobj.y = i;
+				enemy->vobj.px = -1;
+				enemy->anm = 0xff;
+				enemy->hp = 2;
+				enemy->last_fire = 0;
+				total_enemies++;
+			}
+			cptr++;
+		}
 	}
+	/* check continuity */
+	for(i=0; i<total_enemies; i++) {
+		if(enemy->anm <= 0) {
+			panic(get_pc(), "discontinuous enemy list");
+		}
+		enemies[i].anm = rand() & 7;
+	}
+
 	vox_objects(vox, (struct vox_object*)enemies, total_enemies, sizeof *enemies);
 
 	nframes = 0;

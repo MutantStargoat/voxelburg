@@ -8,6 +8,7 @@
 	(((r) >> 3) | (((uint16_t)(g) & 0xf8) << 2) | (((uint16_t)(b) & 0xf8) << 7))
 
 #define VOX_SZ	512
+#define CMAP_SPAWN0	240
 
 #define SPRID(x, y)		(SPRID_BASE + ((y) * 4) + (x) / 4)
 
