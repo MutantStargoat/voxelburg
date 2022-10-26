@@ -119,9 +119,6 @@ static int gamescr_start(void)
 	spr_oam(oam, sidx++, SPRID_UISLASH, 216, 144, SPR_VRECT | SPR_256COL);
 	dynspr_base = sidx;
 
-	wait_vblank();
-	dma_copy32(3, (void*)OAM_ADDR, oam, sidx * 2, 0);
-
 	num_enemies = total_enemies = 0;
 	energy = 5;
 
@@ -360,8 +357,6 @@ static void gamescr_vblank(void)
 	int32_t sa, ca;
 
 	vblcount++;
-
-	if(!nframes) return;
 
 	/* TODO: pre-arrange sprite tiles in gba-native format, so that I can just
 	 * DMA them from cartridge easily
