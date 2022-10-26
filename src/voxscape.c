@@ -32,211 +32,95 @@ enum {
 	SLICELEN	= 1
 };
 
-struct voxscape {
-	int xsz, ysz;
-	unsigned char *height;
-	unsigned char *color;
-	int xshift, xmask, ymask;
+static unsigned char *vox_height;
+static unsigned char *vox_color;
+/* framebuffer */
+static uint16_t *vox_fb;
+static int *vox_coltop;
+static int vox_horizon;
+/* view */
+static int32_t vox_x, vox_y, vox_angle;
+static int vox_vheight;
+/* projection */
+static int vox_fov, vox_znear, vox_zfar;
+static int vox_nslices;
+static int32_t *vox_slicelen;
 
-	int hfilt, cfilt;
+static unsigned int vox_valid;
 
-	/* framebuffer */
-	uint16_t *fb;
-	int fbwidth, fbheight;
-	int *coltop;
-	int horizon;
-
-	/* view */
-	int32_t x, y, angle;
-	int vheight;
-
-	/* projection */
-	int fov, znear, zfar;
-	int nslices;
-	int32_t *slicelen;
-	int proj_dist;
-
-	int zfog;	/* fog start Z (0: no fog) */
-	uint8_t fogcolor;
-
-	unsigned int valid;
-
-	struct vox_object *obj;
-	int num_obj, obj_stride;
-};
+static struct vox_object *vox_obj;
+static int vox_num_obj, vox_obj_stride;
 
 int vox_quality = 1;
 int *projlut;
 
-struct voxscape *vox_create(int xsz, int ysz, uint8_t *himg, uint8_t *cimg)
+int vox_init(int xsz, int ysz, uint8_t *himg, uint8_t *cimg)
 {
-	struct voxscape *vox;
-
 	assert(xsz == XSZ && ysz == YSZ);
 
-	if(!(vox = calloc(1, sizeof *vox))) {
-		return 0;
-	}
-	vox->height = himg;
-	vox->color = cimg;
-	vox->xsz = xsz;
-	vox->ysz = ysz;
+	vox_height = himg;
+	vox_color = cimg;
 
-	vox->xmask = vox->xsz - 1;
-	vox->ymask = vox->ysz - 1;
+	vox_vheight = 80;
 
-	vox->xshift = -1;
-	while(xsz) {
-		xsz >>= 1;
-		vox->xshift++;
-	}
-
-	vox->vheight = 80;
-	vox->proj_dist = 4;	/* TODO */
-
-	return vox;
+	return 0;
 }
 
-void vox_free(struct voxscape *vox)
+void vox_destroy(void)
 {
-	if(!vox) return;
-
-	free(vox->color);
-	free(vox->height);
-	free(vox->coltop);
-	free(vox->slicelen);
-	free(vox);
-}
-
-uint8_t *vox_texture(struct voxscape *vox, uint8_t *data)
-{
-	if(data) {
-		memcpy(vox->color, data, vox->xsz * vox->ysz);
-	}
-	return vox->color;
-}
-
-uint8_t *vox_heightmap(struct voxscape *vox, uint8_t *data)
-{
-	if(data) {
-		memcpy(vox->height, data, vox->xsz * vox->ysz);
-	}
-	return vox->height;
-}
-
-void vox_fog(struct voxscape *vox, int zstart, uint8_t color)
-{
-	vox->zfog = zstart;
-	vox->fogcolor = color;
+	free(vox_color);
+	free(vox_height);
+	free(vox_coltop);
+	free(vox_slicelen);
 }
 
 #define H(x, y)	\
-	vox->height[((((y) >> 16) & YMASK) << XSHIFT) + (((x) >> 16) & XMASK)]
+	vox_height[((((y) >> 16) & YMASK) << XSHIFT) + (((x) >> 16) & XMASK)]
 #define C(x, y) \
-	vox->color[((((y) >> 16) & YMASK) << XSHIFT) + (((x) >> 16) & XMASK)]
+	vox_color[((((y) >> 16) & YMASK) << XSHIFT) + (((x) >> 16) & XMASK)]
 
-#ifdef NO_LERP
-#define vox_height(vox, x, y)	H(x, y)
-#define vox_color(vox, x, y)	C(x, y)
-
-#else
-
-int vox_height(struct voxscape *vox, int32_t x, int32_t y)
+void vox_framebuf(int xres, int yres, void *fb, int horizon)
 {
-	int32_t u, v;
-	int h00, h01, h10, h11, h0, h1;
-
-	if(!vox->hfilt) {
-		return H(x, y);
-	}
-
-	h00 = H(x, y);
-	h01 = H(x, y + 0x10000);
-	h10 = H(x + 0x10000, y);
-	h11 = H(x + 0x10000, y + 0x10000);
-
-	u = x & 0xffff;
-	v = y & 0xffff;
-
-	h0 = XLERP(h00, h01, v, 16);
-	h1 = XLERP(h10, h11, v, 16);
-	return XLERP(h0, h1, u, 16);
-}
-
-int vox_color(struct voxscape *vox, int32_t x, int32_t y)
-{
-	int32_t u, v;
-	int c00, c01, c10, c11, c0, c1;
-
-	if(!vox->cfilt) {
-		return C(x, y);
-	}
-
-	c00 = C(x, y);
-	c01 = C(x, y + 0x10000);
-	c10 = C(x + 0x10000, y);
-	c11 = C(x + 0x10000, y + 0x10000);
-
-	u = x & 0xffff;
-	v = y & 0xffff;
-
-	c0 = XLERP(c00, c01, v, 16);
-	c1 = XLERP(c10, c11, v, 16);
-	return XLERP(c0, c1, u, 16);
-}
-#endif	/* !NO_LERP */
-
-
-void vox_filter(struct voxscape *vox, int hfilt, int cfilt)
-{
-	vox->hfilt = hfilt;
-	vox->cfilt = cfilt;
-}
-
-void vox_framebuf(struct voxscape *vox, int xres, int yres, void *fb, int horizon)
-{
-	if(xres != vox->fbwidth) {
-		if(!(vox->coltop = iwram_sbrk(xres * sizeof *vox->coltop))) {
+	if(!vox_coltop) {
+		if(!(vox_coltop = iwram_sbrk(xres * sizeof *vox_coltop))) {
 			panic(get_pc(), "vox_framebuf: failed to allocate column table (%d)\n", xres);
 		}
 	}
-	vox->fb = fb;
-	vox->fbwidth = xres;
-	vox->fbheight = yres;
-	vox->horizon = horizon >= 0 ? horizon : (vox->fbheight >> 1);
+	vox_fb = fb;
+	vox_horizon = horizon >= 0 ? horizon : (FBHEIGHT >> 1);
 }
 
-void vox_view(struct voxscape *vox, int32_t x, int32_t y, int h, int32_t angle)
+void vox_view(int32_t x, int32_t y, int h, int32_t angle)
 {
 	if(h < 0) {
-		h = vox_height(vox, x, y) - h;
+		h = H(x, y) - h;
 	}
 
-	vox->x = x;
-	vox->y = y;
-	vox->vheight = h;
-	vox->angle = angle;
+	vox_x = x;
+	vox_y = y;
+	vox_vheight = h;
+	vox_angle = angle;
 
-	vox->valid &= ~SLICELEN;
+	vox_valid &= ~SLICELEN;
 }
 
-void vox_proj(struct voxscape *vox, int fov, int znear, int zfar)
+void vox_proj(int fov, int znear, int zfar)
 {
-	vox->fov = fov;
-	vox->znear = znear;
-	vox->zfar = zfar;
+	vox_fov = fov;
+	vox_znear = znear;
+	vox_zfar = zfar;
 
-	vox->nslices = vox->zfar - vox->znear;
-	if(!vox->slicelen) {
-		if(!(vox->slicelen = iwram_sbrk(vox->nslices * sizeof *vox->slicelen))) {
-			panic(get_pc(), "vox_proj: failed to allocate slice length table (%d)\n", vox->nslices);
+	vox_nslices = vox_zfar - vox_znear;
+	if(!vox_slicelen) {
+		if(!(vox_slicelen = iwram_sbrk(vox_nslices * sizeof *vox_slicelen))) {
+			panic(get_pc(), "vox_proj: failed to allocate slice length table (%d)\n", vox_nslices);
 		}
-		if(!(projlut = iwram_sbrk(vox->nslices * sizeof *projlut))) {
-			panic(get_pc(), "vox_framebuf: failed to allocate projection table (%d)\n", vox->nslices);
+		if(!(projlut = iwram_sbrk(vox_nslices * sizeof *projlut))) {
+			panic(get_pc(), "vox_framebuf: failed to allocate projection table (%d)\n", vox_nslices);
 		}
 	}
 
-	vox->valid &= ~SLICELEN;
+	vox_valid &= ~SLICELEN;
 }
 
 /* algorithm:
@@ -245,45 +129,45 @@ void vox_proj(struct voxscape *vox, int fov, int znear, int zfar)
  * fill the visible (top) part of each column
  */
 ARM_IWRAM
-void vox_render(struct voxscape *vox)
+void vox_render(void)
 {
 	int i;
 
-	vox_begin(vox);
+	vox_begin();
 
 	if(vox_quality) {
-		for(i=0; i<vox->nslices; i++) {
-			vox_render_slice(vox, i);
+		for(i=0; i<vox_nslices; i++) {
+			vox_render_slice(i);
 		}
 	} else {
-		for(i=0; i<vox->nslices; i++) {
+		for(i=0; i<vox_nslices; i++) {
 			if(i >= 10 && (i & 1) == 0) {
 				continue;
 			}
-			vox_render_slice(vox, i);
+			vox_render_slice(i);
 		}
 	}
 }
 
 ARM_IWRAM
-void vox_begin(struct voxscape *vox)
+void vox_begin(void)
 {
 	int i;
 
-	memset(vox->coltop, 0, FBWIDTH * sizeof *vox->coltop);
+	memset(vox_coltop, 0, FBWIDTH * sizeof *vox_coltop);
 
-	if(!(vox->valid & SLICELEN)) {
-		float theta = (float)vox->fov * M_PI / 360.0f;	/* half angle */
-		for(i=0; i<vox->nslices; i++) {
-			vox->slicelen[i] = (int32_t)((vox->znear + i) * tan(theta) * 4.0f * 65536.0f);
-			projlut[i] = (HSCALE << 8) / (vox->znear + i);
+	if(!(vox_valid & SLICELEN)) {
+		float theta = (float)vox_fov * M_PI / 360.0f;	/* half angle */
+		for(i=0; i<vox_nslices; i++) {
+			vox_slicelen[i] = (int32_t)((vox_znear + i) * tan(theta) * 4.0f * 65536.0f);
+			projlut[i] = (HSCALE << 8) / (vox_znear + i);
 		}
-		vox->valid |= SLICELEN;
+		vox_valid |= SLICELEN;
 	}
 }
 
 ARM_IWRAM
-void vox_render_slice(struct voxscape *vox, int n)
+void vox_render_slice(int n)
 {
 	int i, j, hval, last_hval, colstart, colheight, col, z, offs, last_offs = -1;
 	int32_t x, y, len, xstep, ystep;
@@ -292,16 +176,16 @@ void vox_render_slice(struct voxscape *vox, int n)
 	/*int proj;*/
 	struct vox_object *obj;
 
-	z = vox->znear + n;
+	z = vox_znear + n;
 
-	len = vox->slicelen[n] >> 8;
-	xstep = (((COS(vox->angle) >> 4) * len) >> 4) / (FBWIDTH / 2);
-	ystep = (((SIN(vox->angle) >> 4) * len) >> 4) / (FBWIDTH / 2);
+	len = vox_slicelen[n] >> 8;
+	xstep = (((COS(vox_angle) >> 4) * len) >> 4) / (FBWIDTH / 2);
+	ystep = (((SIN(vox_angle) >> 4) * len) >> 4) / (FBWIDTH / 2);
 
-	x = vox->x - SIN(vox->angle) * z - xstep * (FBWIDTH / 4);
-	y = vox->y + COS(vox->angle) * z - ystep * (FBWIDTH / 4);
+	x = vox_x - SIN(vox_angle) * z - xstep * (FBWIDTH / 4);
+	y = vox_y + COS(vox_angle) * z - ystep * (FBWIDTH / 4);
 
-	/*proj = (HSCALE << 8) / (vox->znear + n);*/
+	/*proj = (HSCALE << 8) / (vox_znear + n);*/
 
 	for(i=0; i<FBWIDTH/2; i++) {
 		col = i << 1;
@@ -310,29 +194,29 @@ void vox_render_slice(struct voxscape *vox, int n)
 			hval = last_hval;
 			color = last_col;
 		} else {
-			hval = vox->height[offs] - vox->vheight;
-			hval = ((hval * projlut[n]) >> 8) + vox->horizon;
+			hval = vox_height[offs] - vox_vheight;
+			hval = ((hval * projlut[n]) >> 8) + vox_horizon;
 			if(hval > FBHEIGHT) hval = FBHEIGHT;
-			color = vox->color[offs];
+			color = vox_color[offs];
 			last_offs = offs;
 			last_hval = hval;
 			last_col = color;
 		}
-		if(hval > vox->coltop[col]) {
+		if(hval >= vox_coltop[col]) {
 			colstart = FBHEIGHT - hval;
-			colheight = hval - vox->coltop[col];
-			fbptr = vox->fb + colstart * (FBPITCH / 2) + i;
+			colheight = hval - vox_coltop[col];
+			fbptr = vox_fb + colstart * (FBPITCH / 2) + i;
 
 			for(j=0; j<colheight; j++) {
 				*fbptr = color | ((uint16_t)color << 8);
 				fbptr += FBPITCH / 2;
 			}
-			vox->coltop[col] = hval;
+			vox_coltop[col] = hval;
 
 			/* check to see if there's an object here */
 			if(color >= CMAP_SPAWN0) {
 				int idx = color - CMAP_SPAWN0;
-				obj = (struct vox_object*)((char*)vox->obj + (idx << OBJ_STRIDE_SHIFT));
+				obj = (struct vox_object*)((char*)vox_obj + (idx << OBJ_STRIDE_SHIFT));
 				obj->px = col;
 				obj->py = colstart;
 				obj->scale = projlut[n];
@@ -344,14 +228,14 @@ void vox_render_slice(struct voxscape *vox, int n)
 }
 
 ARM_IWRAM
-void vox_sky_solid(struct voxscape *vox, uint8_t color)
+void vox_sky_solid(uint8_t color)
 {
 	int i, j, colheight;
 	uint16_t *fbptr;
 
 	for(i=0; i<FBWIDTH / 2; i++) {
-		fbptr = vox->fb + i;
-		colheight = FBHEIGHT - vox->coltop[i << 1];
+		fbptr = vox_fb + i;
+		colheight = FBHEIGHT - vox_coltop[i << 1];
 
 		for(j=0; j<colheight; j++) {
 			*fbptr = color | ((uint16_t)color << 8);
@@ -361,10 +245,10 @@ void vox_sky_solid(struct voxscape *vox, uint8_t color)
 }
 
 ARM_IWRAM
-void vox_sky_grad(struct voxscape *vox, uint8_t chor, uint8_t ctop)
+void vox_sky_grad(uint8_t chor, uint8_t ctop)
 {
 	int i, j, colheight, t;
-	int d = FBHEIGHT - vox->horizon;
+	int d = FBHEIGHT - vox_horizon;
 	uint8_t grad[FBHEIGHT];
 	uint16_t *fbptr;
 
@@ -377,8 +261,8 @@ void vox_sky_grad(struct voxscape *vox, uint8_t chor, uint8_t ctop)
 	}
 
 	for(i=0; i<FBWIDTH / 2; i++) {
-		fbptr = vox->fb + i;
-		colheight = FBHEIGHT - vox->coltop[i << 1];
+		fbptr = vox_fb + i;
+		colheight = FBHEIGHT - vox_coltop[i << 1];
 
 		for(j=0; j<colheight; j++) {
 			*fbptr = grad[j] | ((uint16_t)grad[j] << 8);
@@ -387,7 +271,7 @@ void vox_sky_grad(struct voxscape *vox, uint8_t chor, uint8_t ctop)
 	}
 }
 
-void vox_objects(struct voxscape *vox, struct vox_object *ptr, int count, int stride)
+void vox_objects(struct vox_object *ptr, int count, int stride)
 {
 	int i;
 	struct vox_object *obj;
@@ -397,9 +281,9 @@ void vox_objects(struct voxscape *vox, struct vox_object *ptr, int count, int st
 				1 << OBJ_STRIDE_SHIFT, stride);
 	}
 
-	vox->obj = ptr;
-	vox->num_obj = count;
-	vox->obj_stride = stride;
+	vox_obj = ptr;
+	vox_num_obj = count;
+	vox_obj_stride = stride;
 
 	obj = ptr;
 	for(i=0; i<count; i++) {

@@ -46,7 +46,6 @@ static int nframes, backbuf;
 static uint16_t *vram[] = { gba_vram_lfb0, gba_vram_lfb1 };
 
 static int32_t pos[2], angle, horizon = 80;
-static struct voxscape *vox;
 
 #define COLOR_HORIZON	192
 #define COLOR_ZENITH	255
@@ -56,7 +55,7 @@ static uint16_t oam[4 * MAX_SPR];
 static int dynspr_base, dynspr_count;
 
 
-#define MAX_ENEMIES	(256 - CMAP_SPAWN0)
+#define MAX_ENEMIES		(255 - CMAP_SPAWN0)
 struct enemy enemies[MAX_ENEMIES];
 int num_enemies, total_enemies;
 static int energy;
@@ -91,11 +90,9 @@ static int gamescr_start(void)
 
 	pos[0] = pos[1] = VOX_SZ << 15;
 
-	if(!(vox = vox_create(VOX_SZ, VOX_SZ, height_pixels, color_pixels))) {
-		panic(get_pc(), "vox_create");
-	}
-	vox_proj(vox, FOV, NEAR, FAR);
-	vox_view(vox, pos[0], pos[1], -40, angle);
+	vox_init(VOX_SZ, VOX_SZ, height_pixels, color_pixels);
+	vox_proj(FOV, NEAR, FAR);
+	vox_view(pos[0], pos[1], -40, angle);
 
 	/* setup color image palette */
 	for(i=0; i<256; i++) {
@@ -104,13 +101,6 @@ static int gamescr_start(void)
 		int b = color_cmap[i * 3 + 2];
 		gba_bgpal[i] = (((uint16_t)b << 7) & 0x7c00) | (((uint16_t)g << 2) & 0x3e0) | (((uint16_t)r >> 3) & 0x1f);
 	}
-	/*
-	intr_disable();
-	interrupt(INTR_HBLANK, hblank);
-	REG_DISPSTAT |= DISPSTAT_IEN_HBLANK;
-	unmask(INTR_HBLANK);
-	intr_enable();
-	*/
 
 	spr_setup(16, 16, spr_game_pixels, spr_game_cmap);
 	wait_vblank();
@@ -139,16 +129,18 @@ static int gamescr_start(void)
 	cptr = color_pixels;
 	for(i=0; i<VOX_SZ; i++) {
 		for(j=0; j<VOX_SZ; j++) {
-			if(*cptr == 0) {
+			if(*cptr == 255) {
 				/* player spawn point */
 				pos[0] = j << 16;
 				pos[1] = i << 16;
 
-			} else if(*cptr >= CMAP_SPAWN0) {
+			} else if(*cptr >= CMAP_SPAWN0 && *cptr != 255) {
 				/* enemy spawn point */
-				enemy = enemies + *cptr - CMAP_SPAWN0;
+				int idx = *cptr - CMAP_SPAWN0;
+				enemy = enemies + idx;
 				if(enemy->anm) {
-					panic(get_pc(), "double spawn at %d,%d", j, i);
+					panic(get_pc(), "double spawn %d at %d,%d (prev: %d,%d)", idx,
+							j, i, enemy->vobj.x, enemy->vobj.y);
 				}
 				enemy->vobj.x = j;
 				enemy->vobj.y = i;
@@ -156,20 +148,23 @@ static int gamescr_start(void)
 				enemy->anm = 0xff;
 				enemy->hp = 2;
 				enemy->last_fire = 0;
-				total_enemies++;
+				if(++total_enemies >= MAX_ENEMIES) {
+					goto endspawn;
+				}
 			}
 			cptr++;
 		}
 	}
+endspawn:
 	/* check continuity */
 	for(i=0; i<total_enemies; i++) {
-		if(enemy->anm <= 0) {
+		if(enemies[i].anm <= 0) {
 			panic(get_pc(), "discontinuous enemy list");
 		}
 		enemies[i].anm = rand() & 7;
 	}
 
-	vox_objects(vox, (struct vox_object*)enemies, total_enemies, sizeof *enemies);
+	vox_objects((struct vox_object*)enemies, total_enemies, sizeof *enemies);
 
 	nframes = 0;
 	return 0;
@@ -184,7 +179,7 @@ static void gamescr_frame(void)
 	backbuf = ++nframes & 1;
 	framebuf = vram[backbuf];
 
-	vox_framebuf(vox, 240, 160, framebuf, horizon);
+	vox_framebuf(240, 160, framebuf, horizon);
 
 	update();
 	draw();
@@ -267,7 +262,7 @@ static void update(void)
 			pos[1] -= right[1];
 		}
 
-		vox_view(vox, pos[0], pos[1], -40, angle);
+		vox_view(pos[0], pos[1], -40, angle);
 	}
 
 	snum = 0;
@@ -302,6 +297,7 @@ static void update(void)
 				sid = SPRID_ENEMY0 + ((anm & 7) << 2);
 				flags |= SPR_VRECT;
 			} else {
+				anm = 0;
 				sid = SPRID_HUSK;
 			}
 
@@ -339,9 +335,9 @@ static void draw(void)
 	//dma_fill16(3, framebuf, 0, 240 * 160 / 2);
 	fillblock_16byte(framebuf, 0, 240 * 160 / 16);
 
-	vox_render(vox);
-	//vox_sky_grad(vox, COLOR_HORIZON, COLOR_ZENITH);
-	//vox_sky_solid(vox, COLOR_ZENITH);
+	vox_render();
+	//vox_sky_grad(COLOR_HORIZON, COLOR_ZENITH);
+	//vox_sky_solid(COLOR_ZENITH);
 }
 
 static inline void xform_pixel(int *xp, int *yp)
