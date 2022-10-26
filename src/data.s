@@ -5,6 +5,7 @@
 	.globl height_pixels
 	.globl spr_game_pixels
 	.globl spr_game_cmap
+	.globl menuscr_pixels
 
 	.align 1
 color_pixels:
@@ -22,3 +23,7 @@ spr_game_pixels:
 	.align 1
 spr_game_cmap:
 	.incbin "data/spr_game.pal"
+
+	.align 1
+menuscr_pixels:
+	.incbin "data/menuscr.555"

@@ -4,6 +4,7 @@
 #include "debug.h"
 #include "game.h"
 #include "maxmod.h"
+#include "input.h"
 
 static void vblank(void);
 
@@ -36,7 +37,7 @@ int main(void)
 		panic(get_pc(), "failed to initialize screens");
 	}
 
-	if(change_screen(find_screen("game")) == -1) {
+	if(change_screen(find_screen("menu")) == -1) {
 		panic(get_pc(), "failed to find game screen");
 	}
 
@@ -53,6 +54,7 @@ static void vblank(void)
 {
 	vblperf_count++;
 
+	keyb_vblank();
 	curscr->vblank();
 
 #ifndef NOSOUND

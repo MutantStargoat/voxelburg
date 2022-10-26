@@ -51,7 +51,6 @@ static unsigned int vox_valid;
 static struct vox_object *vox_obj;
 static int vox_num_obj, vox_obj_stride;
 
-int vox_quality = 1;
 int *projlut;
 
 int vox_init(int xsz, int ysz, uint8_t *himg, uint8_t *cimg)
@@ -135,17 +134,8 @@ void vox_render(void)
 
 	vox_begin();
 
-	if(vox_quality) {
-		for(i=0; i<vox_nslices; i++) {
-			vox_render_slice(i);
-		}
-	} else {
-		for(i=0; i<vox_nslices; i++) {
-			if(i >= 10 && (i & 1) == 0) {
-				continue;
-			}
-			vox_render_slice(i);
-		}
+	for(i=0; i<vox_nslices; i++) {
+		vox_render_slice(i);
 	}
 }
 

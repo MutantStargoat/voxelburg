@@ -15,7 +15,7 @@
 
 #define present(x) \
 	do { \
-		REG_DISPCNT = DISPCNT_BG2 | DISPCNT_OBJ | 4 | ((x) << 4); \
+		REG_DISPCNT = (REG_DISPCNT & ~DISPCNT_FB1) | ((x) << 4); \
 	} while(0)
 
 #define ARM_IWRAM	__attribute__((noinline, target("arm"), section(".iwram")))

@@ -30,11 +30,15 @@ enum {
 	SPRID_HUSK		= SPRID(112, 64)
 };
 
+/* main game data */
 extern unsigned char color_pixels[];
 extern unsigned char color_cmap[];
 extern unsigned char height_pixels[];
 
 extern unsigned char spr_game_pixels[];
 extern unsigned char spr_game_cmap[];
+
+/* menu screen assets */
+extern unsigned char menuscr_pixels[];
 
 #endif	/* DATA_H_ */

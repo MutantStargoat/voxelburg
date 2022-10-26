@@ -68,6 +68,7 @@ static int32_t xform_sa, xform_ca;	/* for viewport bank/zoom */
 static int xform_s;
 
 static short vblcount;
+static void *prev_iwram_top;
 
 
 static inline void xform_pixel(int *xp, int *yp);
@@ -83,6 +84,8 @@ static int gamescr_start(void)
 	int i, j, sidx;
 	uint8_t *cptr;
 	struct enemy *enemy;
+
+	prev_iwram_top = iwram_sbrk(0);
 
 	gba_setmode(4, DISPCNT_BG2 | DISPCNT_OBJ | DISPCNT_FB1);
 
@@ -169,6 +172,7 @@ endspawn:
 
 static void gamescr_stop(void)
 {
+	iwram_brk(prev_iwram_top);
 }
 
 static void gamescr_frame(void)
@@ -219,8 +223,9 @@ static void update(void)
 
 	update_keyb();
 
-	if(KEYPRESS(BN_SELECT)) {
-		vox_quality ^= 1;
+	if(KEYPRESS(BN_START)) {
+		/* TODO pause menu */
+		change_screen(find_screen("menu"));
 	}
 
 	if(keystate) {
@@ -385,8 +390,6 @@ static void gamescr_vblank(void)
 	REG_BG2PB = sa;
 	REG_BG2PC = -sa;
 	REG_BG2PD = ca;
-
-	keystate = ~REG_KEYINPUT;
 
 	if((keystate & (BN_LEFT | BN_RIGHT)) == 0) {
 		if(bank) {

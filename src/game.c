@@ -28,11 +28,11 @@ int change_screen(struct screen *scr)
 
 	mask(INTR_VBLANK);
 
-	if(scr->start && scr->start() == -1) {
-		return -1;
-	}
 	if(curscr && curscr->stop) {
 		curscr->stop();
+	}
+	if(scr->start && scr->start() == -1) {
+		return -1;
 	}
 	curscr = scr;
 

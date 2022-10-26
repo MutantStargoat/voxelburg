@@ -16,6 +16,10 @@ enum {
 	BN_LT		= 0x0200
 };
 
+#ifdef BUILD_GBA
+#define keyb_vblank()	(keystate = ~REG_KEYINPUT)
+#endif
+
 #define KEYPRESS(key)	((keystate & (key)) && (keydelta & (key)))
 #define KEYRELEASE(key)	((keystate & (key)) == 0 && (keydelta & (key)))
 

@@ -14,8 +14,6 @@ struct vox_object {
 	int32_t scale;
 };
 
-extern int vox_quality;
-
 int vox_init(int xsz, int ysz, uint8_t *himg, uint8_t *cimg);
 void vox_destroy(void);
 

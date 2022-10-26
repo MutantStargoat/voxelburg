@@ -2,12 +2,12 @@ src = $(wildcard src/*.c) $(wildcard src/gba/*.c)
 ssrc = $(wildcard src/*.s) $(wildcard src/gba/*.s) data/lut.s
 obj = $(src:.c=.arm.o) $(ssrc:.s=.arm.o)
 dep = $(src:.c=.arm.d)
-name = gbajam22
+name = voxelburg
 elf = $(name).elf
 bin = $(name).gba
 
 data = data/color.raw data/color.pal data/height.raw \
-	   data/spr_game.raw data/spr_game.pal
+	   data/spr_game.raw data/spr_game.pal data/menuscr.555
 
 libs = libs/maxmod/libmm.a
 
@@ -75,6 +75,9 @@ tools/mmutil/mmutil:
 
 %.pal: %.png tools/pngdump/pngdump
 	tools/pngdump/pngdump -o $@ -c $<
+
+%.555: %.png tools/pngdump/pngdump
+	tools/pngdump/pngdump -o $@ -555 $<
 
 data/lut.s: tools/lutgen
 	tools/lutgen >$@
