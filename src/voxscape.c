@@ -60,6 +60,17 @@ int vox_init(int xsz, int ysz, uint8_t *himg, uint8_t *cimg)
 	vox_height = himg;
 	vox_color = cimg;
 
+	vox_fb = 0;
+	vox_coltop = 0;
+	vox_horizon = 0;
+	vox_x = vox_y = vox_angle = 0;
+	vox_fov = 0;
+	vox_znear = vox_zfar = 0;
+	vox_nslices = 0;
+	vox_slicelen = 0;
+	vox_valid = 0;
+	projlut = 0;
+
 	vox_vheight = 80;
 
 	return 0;
@@ -67,10 +78,7 @@ int vox_init(int xsz, int ysz, uint8_t *himg, uint8_t *cimg)
 
 void vox_destroy(void)
 {
-	free(vox_color);
-	free(vox_height);
-	free(vox_coltop);
-	free(vox_slicelen);
+	/* XXX we rely on the screen to clear up any allocated IWRAM */
 }
 
 #define H(x, y)	\

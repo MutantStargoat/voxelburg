@@ -21,7 +21,7 @@ static void gamescr_stop(void);
 static void gamescr_frame(void);
 static void gamescr_vblank(void);
 
-static void update(void);
+static int update(void);
 static void draw(void);
 
 static struct screen gamescr = {
@@ -88,6 +88,7 @@ static int gamescr_start(void)
 	prev_iwram_top = iwram_sbrk(0);
 
 	gba_setmode(4, DISPCNT_BG2 | DISPCNT_OBJ | DISPCNT_FB1);
+	fillblock_16byte(gba_vram_lfb1, 0, 240 * 160 / 16);
 
 	vblperf_setcolor(0);
 
@@ -125,7 +126,7 @@ static int gamescr_start(void)
 	num_enemies = total_enemies = 0;
 	energy = 5;
 
-	srand(0);
+	memset(enemies, 0, sizeof enemies);
 	cptr = color_pixels;
 	for(i=0; i<VOX_SZ; i++) {
 		for(j=0; j<VOX_SZ; j++) {
@@ -166,6 +167,12 @@ endspawn:
 
 	vox_objects((struct vox_object*)enemies, total_enemies, sizeof *enemies);
 
+	energy = MAX_ENERGY;
+	xform_sa = 0;
+	xform_ca = 0x10000;
+	xform_s = 0x100;
+
+	vblcount = 0;
 	nframes = 0;
 	return 0;
 }
@@ -173,6 +180,18 @@ endspawn:
 static void gamescr_stop(void)
 {
 	iwram_brk(prev_iwram_top);
+
+	wait_vblank();
+	/* clear sprites */
+	spr_clear();
+	/* reset background rot/scale state */
+	REG_BG2X = 0;
+	REG_BG2Y = 0;
+	REG_BG2PA = 0x100;
+	REG_BG2PB = 0;
+	REG_BG2PC = 0;
+	REG_BG2PD = 0x100;
+
 }
 
 static void gamescr_frame(void)
@@ -182,7 +201,9 @@ static void gamescr_frame(void)
 
 	vox_framebuf(240, 160, framebuf, horizon);
 
-	update();
+	if(update() == -1) {
+		return;
+	}
 	draw();
 
 	vblperf_end();
@@ -215,7 +236,7 @@ static int numspr[][2] = {
 #define TURN_SPEED	0x200
 #define ELEV_SPEED	8
 
-static void update(void)
+static int update(void)
 {
 	int32_t fwd[2], right[2];
 	int i, snum, ledspr;
@@ -226,6 +247,7 @@ static void update(void)
 	if(KEYPRESS(BN_START)) {
 		/* TODO pause menu */
 		change_screen(find_screen("menu"));
+		return -1;
 	}
 
 	if(keystate) {
@@ -330,6 +352,8 @@ static void update(void)
 	mask(INTR_VBLANK);
 	dynspr_count = snum;
 	unmask(INTR_VBLANK);
+
+	return 0;
 }
 
 static void draw(void)

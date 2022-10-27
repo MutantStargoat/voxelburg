@@ -41,6 +41,7 @@ static void menuscr_frame(void)
 
 	if(KEYPRESS(BN_START)) {
 		change_screen(find_screen("game"));
+		return;
 	}
 }
 
