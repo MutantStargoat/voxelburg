@@ -7,6 +7,7 @@
 #include "xgl.h"
 #include "polyfill.h"
 #include "timer.h"
+#include "input.h"
 #include "data.h"
 #include "meshdata.h"
 #include "debug.h"
@@ -95,11 +96,19 @@ static void logoscr_stop(void)
 
 static int32_t tm, tgoat, tname, tout;
 
+#define end_screen()	change_screen(find_screen("menu")); return
+
 static void logoscr_frame(void)
 {
 	int i;
 	struct xvertex *vptr;
 	int32_t x, y;
+
+	update_keyb();
+
+	if(KEYPRESS(BN_START)) {
+		end_screen();
+	}
 
 	tgoat = 0x10000 - tm;
 	if(tgoat < 0) tgoat = 0;
@@ -109,8 +118,7 @@ static void logoscr_frame(void)
 
 		if(tout > X_HPI + 0x1800) {
 			tout = X_HPI + 0x1800;
-			change_screen(find_screen("menu"));
-			return;
+			end_screen();
 		}
 	}
 
@@ -144,15 +152,6 @@ static void logoscr_frame(void)
 
 	wait_vblank();
 	present(backbuf);
-
-	if(!(nframes & 15)) {
-		emuprint("vbl: %d", vblperf_count);
-	}
-#ifdef VBLBAR
-	vblperf_begin();
-#else
-	vblperf_count = 0;
-#endif
 }
 
 ARM_IWRAM

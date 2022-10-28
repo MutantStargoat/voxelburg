@@ -268,8 +268,17 @@ static int update(void)
 			pos[1] += fwd[1];
 		}
 		if(keystate & BN_B) {
-			pos[0] -= fwd[0];
-			pos[1] -= fwd[1];
+			for(i=0; i<num_enemies; i++) {
+				if(enemies[i].hp && enemies[i].vobj.px >= 0) {
+					int dx = enemies[i].vobj.px - 120;
+					int dy = enemies[i].vobj.py - 80;
+					if(abs(dx) < 10 && abs(dy) < 10) {
+						emuprint("pow");
+						enemies[i].hp--;
+						break;
+					}
+				}
+			}
 		}
 		if(keystate & BN_UP) {
 			if(horizon > 40) horizon -= ELEV_SPEED;
