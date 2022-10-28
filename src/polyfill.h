@@ -24,7 +24,7 @@ struct pvertex {
 	int32_t x, y;
 };
 
-void polyfill_framebuffer(unsigned char *fb, int width, int height);
+void polyfill_framebuffer(void *fb, int width, int height);
 void polyfill_flat(struct pvertex *v, int vnum, unsigned char col);
 
 int clip_line(int *x0, int *y0, int *x1, int *y1, int xmin, int ymin, int xmax, int ymax);

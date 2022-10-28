@@ -6,8 +6,8 @@ name = voxelburg
 elf = $(name).elf
 bin = $(name).gba
 
-data = data/color.raw data/color.pal data/height.raw \
-	   data/spr_game.raw data/spr_game.pal data/menuscr.555
+data = data/color.raw data/color.pal data/height.raw data/menuscr.555 \
+	   data/spr_game.raw data/spr_game.pal data/spr_logo.raw data/spr_logo.pal
 
 libs = libs/maxmod/libmm.a
 
@@ -54,6 +54,9 @@ src/data.arm.o: src/data.s $(data)
 
 tools/pngdump/pngdump:
 	$(MAKE) -C tools/pngdump
+
+tools/meshdump/meshdump:
+	$(MAKE) -C tools/meshdump
 
 tools/lutgen: tools/lutgen.c
 	cc -o $@ $< -lm

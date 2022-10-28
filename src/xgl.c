@@ -20,6 +20,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "xgl.h"
 #include "polyfill.h"
 #include "debug.h"
+#include "util.h"
 
 #define MAT_STACK_SIZE	4
 
@@ -118,9 +119,13 @@ void xgl_mult_matrix(const int32_t *m2)
 	}
 }
 
-/* XXX TODO XXX */
+#if 0
 #define XSIN(x)		(int32_t)(sin(x / 65536.0f) * 65536.0f)
 #define XCOS(x)		(int32_t)(cos(x / 65536.0f) * 65536.0f)
+#else
+#define XSIN(x)		SIN(((x) << 8) / (X_2PI >> 8))
+#define XCOS(x)		COS(((x) << 8) / (X_2PI >> 8))
+#endif
 
 void xgl_translate(int32_t x, int32_t y, int32_t z)
 {
@@ -182,14 +187,14 @@ void xgl_index(int cidx)
 	cur_cidx = cidx;
 }
 
-static void xform(struct xvertex *out, const struct xvertex *in, const int32_t *m)
+static inline void xform(struct xvertex *out, const struct xvertex *in, const int32_t *m)
 {
 	out->x = XMUL(m[0], in->x) + XMUL(m[4], in->y) + XMUL(m[8], in->z) + m[12];
 	out->y = XMUL(m[1], in->x) + XMUL(m[5], in->y) + XMUL(m[9], in->z) + m[13];
 	out->z = XMUL(m[2], in->x) + XMUL(m[6], in->y) + XMUL(m[10], in->z) + m[14];
 }
 
-static void xform_norm(struct xvertex *out, const struct xvertex *in, const int32_t *m)
+static inline void xform_norm(struct xvertex *out, const struct xvertex *in, const int32_t *m)
 {
 	out->nx = XMUL(m[0], in->nx) + XMUL(m[4], in->ny) + XMUL(m[8], in->nz);
 	out->ny = XMUL(m[1], in->nx) + XMUL(m[5], in->ny) + XMUL(m[9], in->nz);
@@ -201,6 +206,7 @@ static void xform_norm(struct xvertex *out, const struct xvertex *in, const int3
 /* near Z = 0.5 */
 #define NEAR_Z	0x18000
 
+ARM_IWRAM
 void xgl_draw(int prim, const struct xvertex *varr, int vcount)
 {
 	int i, cidx, clipnum;
@@ -312,6 +318,7 @@ void xgl_xyzzy(void)
 		(res)->lit = (v0)->lit + (((v1)->lit - (v0)->lit) >> 8) * (t); \
 	} while(0)
 
+ARM_IWRAM
 static int clip_edge_near(struct xvertex *poly, int *vnumptr, struct xvertex *v0, struct xvertex *v1)
 {
 	int vnum = *vnumptr;
@@ -357,6 +364,7 @@ static int clip_edge_near(struct xvertex *poly, int *vnumptr, struct xvertex *v0
 }
 
 /* special case near-plane clipper */
+ARM_IWRAM
 int xgl_clip_near(struct xvertex *vout, int *voutnum, struct xvertex *vin, int vnum)
 {
 	int i, nextidx, res;

@@ -41,4 +41,8 @@ extern unsigned char spr_game_cmap[];
 /* menu screen assets */
 extern unsigned char menuscr_pixels[];
 
+/* logo splash assets */
+extern unsigned char spr_logo_pixels[];
+extern unsigned char spr_logo_cmap[];
+
 #endif	/* DATA_H_ */

@@ -2,6 +2,7 @@
 #include "gba.h"
 #include "game.h"
 
+struct screen *init_logo_screen(void);
 struct screen *init_menu_screen(void);
 struct screen *init_game_screen(void);
 
@@ -13,6 +14,9 @@ static int num_scr;
 
 int init_screens(void)
 {
+	if(!(scrlist[num_scr++] = init_logo_screen())) {
+		return -1;
+	}
 	if(!(scrlist[num_scr++] = init_menu_screen())) {
 		return -1;
 	}

@@ -6,6 +6,8 @@
 	.globl spr_game_pixels
 	.globl spr_game_cmap
 	.globl menuscr_pixels
+	.globl spr_logo_pixels
+	.globl spr_logo_cmap
 
 	.align 1
 color_pixels:
@@ -27,3 +29,10 @@ spr_game_cmap:
 	.align 1
 menuscr_pixels:
 	.incbin "data/menuscr.555"
+
+	.align 1
+spr_logo_pixels:
+	.incbin "data/spr_logo.raw"
+	.align 1
+spr_logo_cmap:
+	.incbin "data/spr_logo.pal"

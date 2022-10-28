@@ -5,6 +5,9 @@
 #include <stdint.h>
 #include "gba.h"
 
+#define RGB555(r, g, b)	\
+	(((r) >> 3) | (((g) << 2) & 0x3e0) | (((b) << 7) & 0x7c00))
+
 #ifdef BUILD_GBA
 
 #define wait_vblank() \

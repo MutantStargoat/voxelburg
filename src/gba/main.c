@@ -5,6 +5,7 @@
 #include "game.h"
 #include "maxmod.h"
 #include "input.h"
+#include "xgl.h"
 
 static void vblank(void);
 
@@ -33,12 +34,14 @@ int main(void)
 	REG_DISPSTAT |= DISPSTAT_IEN_VBLANK;
 	unmask(INTR_VBLANK);
 
+	xgl_init();
+
 	if(init_screens() == -1) {
 		panic(get_pc(), "failed to initialize screens");
 	}
 
-	if(change_screen(find_screen("menu")) == -1) {
-		panic(get_pc(), "failed to find game screen");
+	if(change_screen(find_screen("logo")) == -1) {
+		panic(get_pc(), "failed to find starting screen");
 	}
 
 	intr_enable();

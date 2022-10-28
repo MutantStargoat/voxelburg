@@ -21,9 +21,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 static unsigned char *fb;
 static int fbwidth, fbheight;
-static short scantab[2][160] __attribute__((section(".iwram")));
+static short scantab[2][160];
 
-void polyfill_framebuffer(unsigned char *ptr, int w, int h)
+void polyfill_framebuffer(void *ptr, int w, int h)
 {
 	fb = ptr;
 	fbwidth = w;
@@ -34,6 +34,7 @@ void polyfill_framebuffer(unsigned char *ptr, int w, int h)
 #define VPREV(p)	((p) == varr ? vlast : (p) - 1)
 #define VSUCC(p, side)	((side) == 0 ? VNEXT(p) : VPREV(p))
 
+ARM_IWRAM
 void polyfill_flat(struct pvertex *varr, int vnum, unsigned char col)
 {
 	int i, line, top, bot;
