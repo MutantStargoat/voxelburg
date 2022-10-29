@@ -59,12 +59,15 @@ static int logoscr_start(void)
 	nfaces = sizeof logomesh / sizeof *logomesh / 3;
 	pos = malloc_nf(nfaces * sizeof *pos);
 
+	srand(0);
 	for(i=0; i<nfaces; i++) {
 		pos[i].x = (rand() & 0xffff) - 0x8000;
 		pos[i].y = (rand() & 0xffff) - 0x8000;
 		pos[i].x += pos[i].x << 4;
 		pos[i].y += pos[i].y << 4;
 	}
+	pos[57].x = -0x40000;
+	pos[57].y = 0x20000;
 
 	spr_setup(16, 8, spr_logo_pixels, spr_logo_cmap);
 	/* setup blank glint palette */
