@@ -17,8 +17,8 @@
 #define NEAR	2
 #define FAR		85
 
-#define P_RATE	500
-#define E_RATE	500
+#define P_RATE	250
+#define E_RATE	250
 #define SHOT_TIME	50
 
 static int gamescr_start(void);
@@ -51,7 +51,7 @@ static int nframes, backbuf;
 static uint16_t *vram[] = { gba_vram_lfb0, gba_vram_lfb1 };
 
 static int32_t pos[2], angle, horizon = 80;
-static unsigned long last_shot;
+static long last_shot;
 
 #define COLOR_HORIZON	192
 #define COLOR_ZENITH	255
@@ -66,6 +66,8 @@ struct enemy enemies[MAX_ENEMIES];
 int num_kills, total_enemies;
 static int energy;
 #define MAX_ENERGY	5
+
+#define ENEMY_ENERGY	4
 
 
 #define XFORM_PIXEL_X(x, y)	(xform_ca * (x) - xform_sa * (y) + (120 << 8))
@@ -115,7 +117,7 @@ static int gamescr_start(void)
 
 	pos[0] = pos[1] = VOX_SZ << 15;
 	angle = 0x8000;
-	last_shot = timer_msec > P_RATE ? timer_msec - P_RATE : 0;
+	last_shot = -P_RATE - 1;
 
 	vox_init(VOX_SZ, VOX_SZ, height_pixels, color_pixels);
 	vox_proj(FOV, NEAR, FAR);
@@ -165,7 +167,7 @@ static int gamescr_start(void)
 				enemy->vobj.y = i;
 				enemy->vobj.px = -1;
 				enemy->anm = 0xff;
-				enemy->hp = 2;
+				enemy->hp = ENEMY_ENERGY;
 				enemy->last_shot = timer_msec > E_RATE ? timer_msec - E_RATE : 0;
 				if(++total_enemies >= MAX_ENEMIES) {
 					goto endspawn;
@@ -292,7 +294,12 @@ static int update(void)
 				if(enemies[i].hp && enemies[i].vobj.px >= 0) {
 					int dx = enemies[i].vobj.px - 120;
 					int dy = enemies[i].vobj.py - 80;
-					if(abs(dx) < 10 && abs(dy) < 10) {
+					int rad = enemies[i].vobj.scale >> 5;
+
+					/*emuprint("rad: %d (%d,%d)", rad, enemies[i].vobj.px, enemies[i].vobj.py);*/
+					if(rad < 1) rad = 1;
+
+					if(abs(dx) < rad && abs(dy) < (rad << 1)) {
 						enemies[i].hp--;
 						break;
 					}
@@ -337,27 +344,30 @@ static int update(void)
 	/*spr_oam(oam, dynspr_base + snum++, SPRID_ENEMY, 50, 50, SPR_VRECT | SPR_SZ64 | SPR_256COL);*/
 	enemy = enemies;
 	for(i=0; i<total_enemies; i++) {
-		int sid, anm, px, py;
+		int sid, anm, px, py, yoffs;
 		unsigned int flags;
 		int16_t mat[4];
 		int32_t sa, ca, scale;
 
 		if(enemy->vobj.px >= 0) {
-			flags = SPR_SZ32 | SPR_DBLSZ | SPR_256COL | SPR_ROTSCL | SPR_ROTSCL_SEL(0);
+			flags = SPR_DBLSZ | SPR_256COL | SPR_ROTSCL | SPR_ROTSCL_SEL(0);
 			if(enemies->hp > 0) {
 				anm = (enemies->anm + (vblcount >> 3)) & 0xf;
 				sid = SPRID_ENEMY0 + ((anm & 7) << 2);
-				flags |= SPR_VRECT;
+				flags |= SPR_SZ32 | SPR_VRECT;
+				yoffs = 32;
 			} else {
 				anm = 0;
 				sid = SPRID_HUSK;
+				flags |= SPR_SZ16;
+				yoffs = 16;
 			}
 
 			px = enemy->vobj.px - 120;
 			py = enemy->vobj.py - 80;
 			xform_pixel(&px, &py);
 
-			spr_oam(oam, dynspr_base + snum++, sid, px - 20, py - 32, flags);
+			spr_oam(oam, dynspr_base + snum++, sid, px - 16, py - yoffs, flags);
 
 			scale = enemy->vobj.scale;
 			if(scale > 0x10000) scale = 0x10000;
