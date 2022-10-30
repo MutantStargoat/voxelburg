@@ -182,6 +182,7 @@ static int gamescr_start(void)
 		}
 	}
 endspawn:
+	total_enemies = 1;	/* XXX DBG */
 	/* check continuity */
 	for(i=0; i<total_enemies; i++) {
 		if(enemies[i].anm <= 0) {
@@ -436,6 +437,14 @@ static void draw(void)
 	vox_render();
 	//vox_sky_grad(COLOR_HORIZON, COLOR_ZENITH);
 	//vox_sky_solid(COLOR_ZENITH);
+
+	if(score >= 0) {
+		glyphcolor = 200;
+		glyphfb = framebuf;
+		dbg_drawstr(80, 10, "Victory!");
+		dbg_drawstr(60, 20, "Score: %d", score);
+		dbg_drawstr(59, 30, "Completed in: %lus", total_time);
+	}
 }
 
 static void victory(void)

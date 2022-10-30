@@ -73,6 +73,9 @@ void panic(void *pc, const char *fmt, ...)
 {
 	va_list ap;
 
+	glyphcolor = 0xff;
+	glyphfb = VRAM_LFB_FB0_ADDR;
+
 	fputs("~~~ PANIC ~~~\n", stderr);
 	va_start(ap, fmt);
 	vfprintf(stderr, fmt, ap);
@@ -84,24 +87,27 @@ void panic(void *pc, const char *fmt, ...)
 
 #endif
 
+int glyphcolor = 0xff;
+void *glyphfb = VRAM_LFB_FB0_ADDR;
+
 void dbg_drawglyph(int x, int y, int c)
 {
 	int i;
 	uint16_t pp;
 	unsigned char row;
-	uint16_t *ptr = (uint16_t*)VRAM_LFB_FB0_ADDR + (y << 7) - (y << 3) + (x >> 1);
+	uint16_t *ptr = (uint16_t*)glyphfb + (y << 7) - (y << 3) + (x >> 1);
 	unsigned char *fnt = font_8x8 + ((c & 0xff) << 3);
 
 	for(i=0; i<8; i++) {
 		row = *fnt++;
-		pp = row & 0x80 ? 0xff : 0;
-		*ptr++ = pp | (row & 0x40 ? 0xff00 : 0);
-		pp = row & 0x20 ? 0xff : 0;
-		*ptr++ = pp | (row & 0x10 ? 0xff00 : 0);
-		pp = row & 0x08 ? 0xff : 0;
-		*ptr++ = pp | (row & 0x04 ? 0xff00 : 0);
-		pp = row & 0x02 ? 0xff : 0;
-		*ptr++ = pp | (row & 0x01 ? 0xff00 : 0);
+		pp = row & 0x80 ? glyphcolor : 0;
+		*ptr++ = pp | (row & 0x40 ? (glyphcolor << 8) : 0);
+		pp = row & 0x20 ? glyphcolor : 0;
+		*ptr++ = pp | (row & 0x10 ? (glyphcolor << 8) : 0);
+		pp = row & 0x08 ? glyphcolor : 0;
+		*ptr++ = pp | (row & 0x04 ? (glyphcolor << 8) : 0);
+		pp = row & 0x02 ? glyphcolor : 0;
+		*ptr++ = pp | (row & 0x01 ? (glyphcolor << 8) : 0);
 		ptr += 120 - 4;
 	}
 }

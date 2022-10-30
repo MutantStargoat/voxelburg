@@ -28,6 +28,9 @@ void vblperf_setcolor(int palidx);
 #define vblperf_end()
 #endif
 
+extern int glyphcolor;
+extern void *glyphfb;
+
 void panic(void *pc, const char *fmt, ...) __attribute__((noreturn));
 
 void dbg_drawglyph(int x, int y, int c);
