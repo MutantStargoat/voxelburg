@@ -28,6 +28,7 @@ static void gamescr_vblank(void);
 
 static int update(void);
 static void draw(void);
+static void victory(void);
 
 static struct screen gamescr = {
 	"game",
@@ -51,7 +52,8 @@ static int nframes, backbuf;
 static uint16_t *vram[] = { gba_vram_lfb0, gba_vram_lfb1 };
 
 static int32_t pos[2], angle, horizon = 80;
-static long last_shot;
+static long last_shot, hitfrm;
+static int hit_px, hit_py;
 
 #define COLOR_HORIZON	192
 #define COLOR_ZENITH	255
@@ -62,13 +64,15 @@ static int dynspr_base, dynspr_count;
 
 
 #define MAX_ENEMIES		(255 - CMAP_SPAWN0)
-struct enemy enemies[MAX_ENEMIES];
-int num_kills, total_enemies;
+static struct enemy enemies[MAX_ENEMIES];
+static int num_kills, total_enemies;
 static int energy;
 #define MAX_ENERGY	5
 
 #define ENEMY_ENERGY	4
 
+static int score;
+static unsigned long total_time, start_time;
 
 #define XFORM_PIXEL_X(x, y)	(xform_ca * (x) - xform_sa * (y) + (120 << 8))
 #define XFORM_PIXEL_Y(x, y)	(xform_sa * (x) + xform_ca * (y) + (80 << 8))
@@ -192,6 +196,10 @@ endspawn:
 	xform_ca = 0x10000;
 	xform_s = 0x100;
 
+	score = -1;
+	total_time = 0;
+	start_time = timer_msec;
+
 	vblcount = 0;
 	nframes = 0;
 	return 0;
@@ -300,7 +308,14 @@ static int update(void)
 					if(rad < 1) rad = 1;
 
 					if(abs(dx) < rad && abs(dy) < (rad << 1)) {
-						enemies[i].hp--;
+						if(--enemies[i].hp <= 0) {
+							if(++num_kills >= total_enemies) {
+								victory();
+							}
+						}
+						hit_px = enemies[i].vobj.px;
+						hit_py = enemies[i].vobj.py;
+						hitfrm = nframes;
 						break;
 					}
 				}
@@ -340,6 +355,24 @@ static int update(void)
 		spr_oam(oam, dynspr_base + snum++, i >= energy ? SPRID_LEDOFF : ledspr,
 				8 + (i << 3), 144, SPR_VRECT | SPR_256COL);
 	}
+	/* blaster sprites */
+	if(timer_msec - last_shot <= SHOT_TIME) {
+		spr_oam(oam, dynspr_base + snum++, SPRID_LAS0, -8, 118, SPR_SZ32 | SPR_256COL);
+		spr_oam(oam, dynspr_base + snum++, SPRID_LAS1, 22, 103, SPR_SZ32 | SPR_256COL);
+		spr_oam(oam, dynspr_base + snum++, SPRID_LAS2, 54, 88, SPR_SZ32 | SPR_256COL);
+		spr_oam(oam, dynspr_base + snum++, SPRID_LAS3, 86, 72, SPR_SZ32 | SPR_256COL);
+
+		spr_oam(oam, dynspr_base + snum++, SPRID_LAS0, 240 + 8 - 32, 118, SPR_SZ32 | SPR_256COL | SPR_HFLIP);
+		spr_oam(oam, dynspr_base + snum++, SPRID_LAS1, 240 - 22 - 32, 103, SPR_SZ32 | SPR_256COL | SPR_HFLIP);
+		spr_oam(oam, dynspr_base + snum++, SPRID_LAS2, 240 - 54 - 32, 88, SPR_SZ32 | SPR_256COL | SPR_HFLIP);
+		spr_oam(oam, dynspr_base + snum++, SPRID_LAS3, 240 - 86 - 32, 72, SPR_SZ32 | SPR_256COL | SPR_HFLIP);
+	}
+	/* hit sparks */
+	if(nframes - hitfrm < 5) {
+		int id = SPRID_SPARK0 + (nframes - hitfrm);
+		spr_oam(oam, dynspr_base + snum++, id, hit_px - 16, hit_py - 16,
+				SPR_DBLSZ | SPR_SZ16 | SPR_256COL | SPR_ROTSCL | SPR_ROTSCL_SEL(0));
+	}
 	/* enemy sprites */
 	/*spr_oam(oam, dynspr_base + snum++, SPRID_ENEMY, 50, 50, SPR_VRECT | SPR_SZ64 | SPR_256COL);*/
 	enemy = enemies;
@@ -351,8 +384,8 @@ static int update(void)
 
 		if(enemy->vobj.px >= 0) {
 			flags = SPR_DBLSZ | SPR_256COL | SPR_ROTSCL | SPR_ROTSCL_SEL(0);
-			if(enemies->hp > 0) {
-				anm = (enemies->anm + (vblcount >> 3)) & 0xf;
+			if(enemy->hp > 0) {
+				anm = (enemy->anm + (vblcount >> 3)) & 0xf;
 				sid = SPRID_ENEMY0 + ((anm & 7) << 2);
 				flags |= SPR_SZ32 | SPR_VRECT;
 				yoffs = 32;
@@ -383,17 +416,6 @@ static int update(void)
 		}
 		enemy++;
 	}
-	if(timer_msec - last_shot <= SHOT_TIME) {
-		spr_oam(oam, dynspr_base + snum++, SPRID_LAS0, -8, 118, SPR_SZ32 | SPR_256COL);
-		spr_oam(oam, dynspr_base + snum++, SPRID_LAS1, 22, 103, SPR_SZ32 | SPR_256COL);
-		spr_oam(oam, dynspr_base + snum++, SPRID_LAS2, 54, 88, SPR_SZ32 | SPR_256COL);
-		spr_oam(oam, dynspr_base + snum++, SPRID_LAS3, 86, 72, SPR_SZ32 | SPR_256COL);
-
-		spr_oam(oam, dynspr_base + snum++, SPRID_LAS0, 240 + 8 - 32, 118, SPR_SZ32 | SPR_256COL | SPR_HFLIP);
-		spr_oam(oam, dynspr_base + snum++, SPRID_LAS1, 240 - 22 - 32, 103, SPR_SZ32 | SPR_256COL | SPR_HFLIP);
-		spr_oam(oam, dynspr_base + snum++, SPRID_LAS2, 240 - 54 - 32, 88, SPR_SZ32 | SPR_256COL | SPR_HFLIP);
-		spr_oam(oam, dynspr_base + snum++, SPRID_LAS3, 240 - 86 - 32, 72, SPR_SZ32 | SPR_256COL | SPR_HFLIP);
-	}
 	for(i=snum; i<dynspr_count; i++) {
 		spr_oam_clear(oam, dynspr_base + i);
 	}
@@ -413,6 +435,12 @@ static void draw(void)
 	vox_render();
 	//vox_sky_grad(COLOR_HORIZON, COLOR_ZENITH);
 	//vox_sky_solid(COLOR_ZENITH);
+}
+
+static void victory(void)
+{
+	total_time = timer_msec - start_time;
+	score = 42;
 }
 
 static inline void xform_pixel(int *xp, int *yp)

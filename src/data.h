@@ -31,7 +31,8 @@ enum {
 	SPRID_LAS0		= SPRID(0, 64),
 	SPRID_LAS1		= SPRID(32, 64),
 	SPRID_LAS2		= SPRID(64, 64),
-	SPRID_LAS3		= SPRID(0, 96)
+	SPRID_LAS3		= SPRID(0, 96),
+	SPRID_SPARK0	= SPRID(32, 96)
 };
 
 /* main game data */
