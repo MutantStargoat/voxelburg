@@ -5,6 +5,7 @@
 #include "game.h"
 #include "maxmod.h"
 #include "input.h"
+#include "timer.h"
 #include "xgl.h"
 
 static void vblank(void);
@@ -44,6 +45,7 @@ int main(void)
 		panic(get_pc(), "failed to find starting screen");
 	}
 
+	reset_msec_timer();
 	intr_enable();
 
 	for(;;) {

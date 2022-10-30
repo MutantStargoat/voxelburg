@@ -19,6 +19,7 @@
 
 #define P_RATE	500
 #define E_RATE	500
+#define SHOT_TIME	50
 
 static int gamescr_start(void);
 static void gamescr_stop(void);
@@ -284,8 +285,8 @@ static int update(void)
 			pos[0] += fwd[0];
 			pos[1] += fwd[1];
 		}
+
 		if((keystate & BN_B) && (timer_msec - last_shot >= P_RATE)) {
-			emuprint("pew");
 			last_shot = timer_msec;
 			for(i=0; i<total_enemies; i++) {
 				if(enemies[i].hp && enemies[i].vobj.px >= 0) {
@@ -371,6 +372,17 @@ static int update(void)
 			enemy->vobj.px = -1;
 		}
 		enemy++;
+	}
+	if(timer_msec - last_shot <= SHOT_TIME) {
+		spr_oam(oam, dynspr_base + snum++, SPRID_LAS0, -8, 118, SPR_SZ32 | SPR_256COL);
+		spr_oam(oam, dynspr_base + snum++, SPRID_LAS1, 22, 103, SPR_SZ32 | SPR_256COL);
+		spr_oam(oam, dynspr_base + snum++, SPRID_LAS2, 54, 88, SPR_SZ32 | SPR_256COL);
+		spr_oam(oam, dynspr_base + snum++, SPRID_LAS3, 86, 72, SPR_SZ32 | SPR_256COL);
+
+		spr_oam(oam, dynspr_base + snum++, SPRID_LAS0, 240 + 8 - 32, 118, SPR_SZ32 | SPR_256COL | SPR_HFLIP);
+		spr_oam(oam, dynspr_base + snum++, SPRID_LAS1, 240 - 22 - 32, 103, SPR_SZ32 | SPR_256COL | SPR_HFLIP);
+		spr_oam(oam, dynspr_base + snum++, SPRID_LAS2, 240 - 54 - 32, 88, SPR_SZ32 | SPR_256COL | SPR_HFLIP);
+		spr_oam(oam, dynspr_base + snum++, SPRID_LAS3, 240 - 86 - 32, 72, SPR_SZ32 | SPR_256COL | SPR_HFLIP);
 	}
 	for(i=snum; i<dynspr_count; i++) {
 		spr_oam_clear(oam, dynspr_base + i);

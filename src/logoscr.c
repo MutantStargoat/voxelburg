@@ -87,7 +87,6 @@ static int logoscr_start(void)
 	spr_transform(oam, 0, sprmat);
 
 	nframes = 0;
-	reset_msec_timer();
 	return 0;
 }
 
