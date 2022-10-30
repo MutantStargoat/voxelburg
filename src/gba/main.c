@@ -40,7 +40,7 @@ int main(void)
 		panic(get_pc(), "failed to initialize screens");
 	}
 
-	if(change_screen(find_screen("logo")) == -1) {
+	if(change_screen(find_screen("game")) == -1) {
 		panic(get_pc(), "failed to find starting screen");
 	}
 

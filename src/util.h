@@ -6,7 +6,9 @@
 #include "gba.h"
 
 #define RGB555(r, g, b)	\
-	(((r) >> 3) | (((g) << 2) & 0x3e0) | (((b) << 7) & 0x7c00))
+	((((uint16_t)(r) >> 3) & 0x1f) | \
+	 (((uint16_t)(g) << 2) & 0x3e0) | \
+	 (((uint16_t)(b) << 7) & 0x7c00))
 
 #ifdef BUILD_GBA
 

@@ -6,8 +6,10 @@ name = voxelburg
 elf = $(name).elf
 bin = $(name).gba
 
-data = data/color.raw data/color.pal data/height.raw data/menuscr.555 \
-	   data/spr_game.raw data/spr_game.pal data/spr_logo.raw data/spr_logo.pal
+data = data/color.raw data/color.pal data/color.gpal data/height.raw \
+	   data/spr_game.raw data/spr_game.pal data/spr_logo.raw data/spr_logo.pal \
+	   data/menuscr.raw data/menuscr.pal data/menuscr.gpal \
+	   data/spr_menu.raw data/spr_menu.pal
 
 libs = libs/maxmod/libmm.a
 
@@ -78,6 +80,9 @@ tools/mmutil/mmutil:
 
 %.pal: %.png tools/pngdump/pngdump
 	tools/pngdump/pngdump -o $@ -c $<
+
+%.gpal: %.png tools/pngdump/pngdump
+	tools/pngdump/pngdump -o $@ -c -g $<
 
 %.555: %.png tools/pngdump/pngdump
 	tools/pngdump/pngdump -o $@ -555 $<

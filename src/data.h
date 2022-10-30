@@ -33,6 +33,7 @@ enum {
 /* main game data */
 extern unsigned char color_pixels[];
 extern unsigned char color_cmap[];
+extern unsigned char color_gba_cmap[];
 extern unsigned char height_pixels[];
 
 extern unsigned char spr_game_pixels[];
@@ -40,6 +41,10 @@ extern unsigned char spr_game_cmap[];
 
 /* menu screen assets */
 extern unsigned char menuscr_pixels[];
+extern unsigned char menuscr_cmap[];
+extern unsigned char menuscr_gba_cmap[];
+extern unsigned char spr_menu_pixels[];
+extern unsigned char spr_menu_cmap[];
 
 /* logo splash assets */
 extern unsigned char spr_logo_pixels[];

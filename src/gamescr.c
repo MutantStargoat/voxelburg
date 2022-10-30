@@ -8,6 +8,7 @@
 #include "input.h"
 #include "gba.h"
 #include "sprite.h"
+#include "timer.h"
 #include "debug.h"
 #include "voxscape.h"
 #include "data.h"
@@ -15,6 +16,9 @@
 #define FOV		30
 #define NEAR	2
 #define FAR		85
+
+#define P_RATE	500
+#define E_RATE	500
 
 static int gamescr_start(void);
 static void gamescr_stop(void);
@@ -36,7 +40,7 @@ struct enemy {
 	struct vox_object vobj;
 	short hp;
 	short anm;
-	int last_fire;
+	int last_shot;
 };
 #define ENEMY_VALID(e)	((e)->anm != 0)
 
@@ -46,6 +50,7 @@ static int nframes, backbuf;
 static uint16_t *vram[] = { gba_vram_lfb0, gba_vram_lfb1 };
 
 static int32_t pos[2], angle, horizon = 80;
+static unsigned long last_shot;
 
 #define COLOR_HORIZON	192
 #define COLOR_ZENITH	255
@@ -57,7 +62,7 @@ static int dynspr_base, dynspr_count;
 
 #define MAX_ENEMIES		(255 - CMAP_SPAWN0)
 struct enemy enemies[MAX_ENEMIES];
-int num_enemies, total_enemies;
+int num_kills, total_enemies;
 static int energy;
 #define MAX_ENERGY	5
 
@@ -79,6 +84,21 @@ struct screen *init_game_screen(void)
 	return &gamescr;
 }
 
+static void setup_palette(void)
+{
+	int i;
+	unsigned char *cmap = gba_colors ? color_gba_cmap : color_cmap;
+
+	emuprint("setting up %s palette", gba_colors ? "GBA" : "NDS/Emu");
+
+	for(i=0; i<256; i++) {
+		int r = cmap[i * 3];
+		int g = cmap[i * 3 + 1];
+		int b = cmap[i * 3 + 2];
+		gba_bgpal[i] = RGB555(r, g, b);
+	}
+}
+
 static int gamescr_start(void)
 {
 	int i, j, sidx;
@@ -93,18 +113,15 @@ static int gamescr_start(void)
 	vblperf_setcolor(0);
 
 	pos[0] = pos[1] = VOX_SZ << 15;
+	angle = 0x8000;
+	last_shot = timer_msec > P_RATE ? timer_msec - P_RATE : 0;
 
 	vox_init(VOX_SZ, VOX_SZ, height_pixels, color_pixels);
 	vox_proj(FOV, NEAR, FAR);
 	vox_view(pos[0], pos[1], -40, angle);
 
 	/* setup color image palette */
-	for(i=0; i<256; i++) {
-		int r = color_cmap[i * 3];
-		int g = color_cmap[i * 3 + 1];
-		int b = color_cmap[i * 3 + 2];
-		gba_bgpal[i] = (((uint16_t)b << 7) & 0x7c00) | (((uint16_t)g << 2) & 0x3e0) | (((uint16_t)r >> 3) & 0x1f);
-	}
+	setup_palette();
 
 	spr_setup(16, 16, spr_game_pixels, spr_game_cmap);
 	wait_vblank();
@@ -123,7 +140,7 @@ static int gamescr_start(void)
 	spr_oam(oam, sidx++, SPRID_UISLASH, 216, 144, SPR_VRECT | SPR_256COL);
 	dynspr_base = sidx;
 
-	num_enemies = total_enemies = 0;
+	num_kills = total_enemies = 0;
 	energy = 5;
 
 	memset(enemies, 0, sizeof enemies);
@@ -148,7 +165,7 @@ static int gamescr_start(void)
 				enemy->vobj.px = -1;
 				enemy->anm = 0xff;
 				enemy->hp = 2;
-				enemy->last_fire = 0;
+				enemy->last_shot = timer_msec > E_RATE ? timer_msec - E_RATE : 0;
 				if(++total_enemies >= MAX_ENEMIES) {
 					goto endspawn;
 				}
@@ -267,13 +284,14 @@ static int update(void)
 			pos[0] += fwd[0];
 			pos[1] += fwd[1];
 		}
-		if(keystate & BN_B) {
-			for(i=0; i<num_enemies; i++) {
+		if((keystate & BN_B) && (timer_msec - last_shot >= P_RATE)) {
+			emuprint("pew");
+			last_shot = timer_msec;
+			for(i=0; i<total_enemies; i++) {
 				if(enemies[i].hp && enemies[i].vobj.px >= 0) {
 					int dx = enemies[i].vobj.px - 120;
 					int dy = enemies[i].vobj.py - 80;
 					if(abs(dx) < 10 && abs(dy) < 10) {
-						emuprint("pow");
 						enemies[i].hp--;
 						break;
 					}
@@ -300,8 +318,8 @@ static int update(void)
 
 	snum = 0;
 	/* turrets number */
-	spr_oam(oam, dynspr_base + snum++, numspr[num_enemies][0], 200, 144, SPR_VRECT | SPR_256COL);
-	spr_oam(oam, dynspr_base + snum++, numspr[num_enemies][1], 208, 144, SPR_VRECT | SPR_256COL);
+	spr_oam(oam, dynspr_base + snum++, numspr[num_kills][0], 200, 144, SPR_VRECT | SPR_256COL);
+	spr_oam(oam, dynspr_base + snum++, numspr[num_kills][1], 208, 144, SPR_VRECT | SPR_256COL);
 	spr_oam(oam, dynspr_base + snum++, numspr[total_enemies][0], 224, 144, SPR_VRECT | SPR_256COL);
 	spr_oam(oam, dynspr_base + snum++, numspr[total_enemies][1], 232, 144, SPR_VRECT | SPR_256COL);
 	/* energy bar */
