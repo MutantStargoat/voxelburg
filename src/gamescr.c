@@ -59,7 +59,7 @@ static int hit_px, hit_py;
 #define COLOR_HORIZON	192
 #define COLOR_ZENITH	255
 
-#define MAX_SPR		32
+#define MAX_SPR		40
 static uint16_t oam[4 * MAX_SPR];
 static int dynspr_base, dynspr_count;
 
@@ -74,6 +74,7 @@ static int energy;
 
 static int score;
 static unsigned long total_time, start_time;
+static int running;
 
 #define XFORM_PIXEL_X(x, y)	(xform_ca * (x) - xform_sa * (y) + (120 << 8))
 #define XFORM_PIXEL_Y(x, y)	(xform_sa * (x) + xform_ca * (y) + (80 << 8))
@@ -202,13 +203,19 @@ endspawn:
 	total_time = 0;
 	start_time = timer_msec;
 
+	hitfrm = 0;
+
 	vblcount = 0;
 	nframes = 0;
+
+	running = 1;
 	return 0;
 }
 
 static void gamescr_stop(void)
 {
+	running = 0;
+
 	iwram_brk(prev_iwram_top);
 
 	wait_vblank();
@@ -439,11 +446,19 @@ static void draw(void)
 	//vox_sky_solid(COLOR_ZENITH);
 
 	if(score >= 0) {
-		glyphcolor = 200;
+		int sec = total_time / 1000;
+
+		fillblock_16byte(framebuf + 8 * 240 / 2, 199 | (199 << 8) | (199 << 16) | (199 << 24), 40 * 240 / 16);
+
 		glyphfb = framebuf;
+		glyphbg = 199;
+		glyphcolor = 197;
 		dbg_drawstr(80, 10, "Victory!");
-		dbg_drawstr(60, 20, "Score: %d", score);
-		dbg_drawstr(59, 30, "Completed in: %lus", total_time);
+		glyphcolor = 200;
+		dbg_drawstr(30, 20, "       Score: %d", score);
+		dbg_drawstr(30, 28, "Completed in: %lum.%lus", sec / 60, sec % 60);
+		glyphcolor = 198;
+		dbg_drawstr(85, 40, "Press start to exit");
 	}
 }
 
@@ -475,6 +490,8 @@ static void gamescr_vblank(void)
 {
 	static int bank, bankdir, theta;
 	int32_t sa, ca;
+
+	if(!running) return;
 
 	vblcount++;
 
