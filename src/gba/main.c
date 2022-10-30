@@ -7,6 +7,7 @@
 #include "input.h"
 #include "timer.h"
 #include "xgl.h"
+#include "scoredb.h"
 
 static void vblank(void);
 
@@ -35,13 +36,16 @@ int main(void)
 	REG_DISPSTAT |= DISPSTAT_IEN_VBLANK;
 	unmask(INTR_VBLANK);
 
+	load_scores();
+	gba_colors = scores[10].score & 1;
+
 	xgl_init();
 
 	if(init_screens() == -1) {
 		panic(get_pc(), "failed to initialize screens");
 	}
 
-	if(change_screen(find_screen("game")) == -1) {
+	if(change_screen(find_screen("logo")) == -1) {
 		panic(get_pc(), "failed to find starting screen");
 	}
 

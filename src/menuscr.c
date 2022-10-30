@@ -6,6 +6,7 @@
 #include "input.h"
 #include "sprite.h"
 #include "debug.h"
+#include "scoredb.h"
 
 enum {
 	MENU_START,
@@ -101,6 +102,8 @@ static void menuscr_frame(void)
 	if((KEYPRESS(BN_LEFT) || KEYPRESS(BN_RIGHT)) && sel == MENU_COLORS) {
 		gba_colors ^= 1;
 		setup_palette();
+		scores[10].score = (scores[10].score & ~1) | (gba_colors & 1);
+		save_scores();
 	}
 
 	wait_vblank();

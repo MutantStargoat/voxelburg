@@ -12,6 +12,7 @@
 #include "debug.h"
 #include "voxscape.h"
 #include "data.h"
+#include "scoredb.h"
 
 #define FOV		30
 #define NEAR	2
@@ -441,6 +442,10 @@ static void victory(void)
 {
 	total_time = timer_msec - start_time;
 	score = 42;
+
+	/* TODO enter name */
+	save_score("???", score, total_time, 0);
+	save_scores();
 }
 
 static inline void xform_pixel(int *xp, int *yp)
