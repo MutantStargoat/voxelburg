@@ -32,7 +32,7 @@ enum {
 	SLICELEN	= 1
 };
 
-static unsigned char *vox_height;
+static unsigned char *vox_hmap;
 static unsigned char *vox_color;
 /* framebuffer */
 static uint16_t *vox_fb;
@@ -57,7 +57,7 @@ int vox_init(int xsz, int ysz, uint8_t *himg, uint8_t *cimg)
 {
 	assert(xsz == XSZ && ysz == YSZ);
 
-	vox_height = himg;
+	vox_hmap = himg;
 	vox_color = cimg;
 
 	vox_fb = 0;
@@ -82,7 +82,7 @@ void vox_destroy(void)
 }
 
 #define H(x, y)	\
-	vox_height[((((y) >> 16) & YMASK) << XSHIFT) + (((x) >> 16) & XMASK)]
+	vox_hmap[((((y) >> 16) & YMASK) << XSHIFT) + (((x) >> 16) & XMASK)]
 #define C(x, y) \
 	vox_color[((((y) >> 16) & YMASK) << XSHIFT) + (((x) >> 16) & XMASK)]
 
@@ -97,7 +97,7 @@ void vox_framebuf(int xres, int yres, void *fb, int horizon)
 	vox_horizon = horizon >= 0 ? horizon : (FBHEIGHT >> 1);
 }
 
-void vox_view(int32_t x, int32_t y, int h, int32_t angle)
+int vox_view(int32_t x, int32_t y, int h, int32_t angle)
 {
 	if(h < 0) {
 		h = H(x, y) - h;
@@ -109,6 +109,8 @@ void vox_view(int32_t x, int32_t y, int h, int32_t angle)
 	vox_angle = angle;
 
 	vox_valid &= ~SLICELEN;
+
+	return h;
 }
 
 void vox_proj(int fov, int znear, int zfar)
@@ -192,7 +194,7 @@ void vox_render_slice(int n)
 			hval = last_hval;
 			color = last_col;
 		} else {
-			hval = vox_height[offs] - vox_vheight;
+			hval = vox_hmap[offs] - vox_vheight;
 			hval = ((hval * projlut[n]) >> 8) + vox_horizon;
 			if(hval > FBHEIGHT) hval = FBHEIGHT;
 			color = vox_color[offs];
@@ -288,6 +290,11 @@ void vox_objects(struct vox_object *ptr, int count, int stride)
 		obj->offs = obj->y * XSZ + obj->x;
 		obj = (struct vox_object*)((char*)obj + stride);
 	}
+}
+
+int vox_height(int x, int y)
+{
+	return H(x, y);
 }
 
 int vox_check_vis(int32_t x0, int32_t y0, int32_t x1, int32_t y1)

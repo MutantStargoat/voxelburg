@@ -14,12 +14,14 @@ struct vox_object {
 	int32_t scale;
 };
 
+extern int *projlut;
+
 int vox_init(int xsz, int ysz, uint8_t *himg, uint8_t *cimg);
 void vox_destroy(void);
 
 void vox_framebuf(int xres, int yres, void *fb, int horizon);
 /* negative height for auto at -h above terrain */
-void vox_view(int32_t x, int32_t y, int h, int32_t angle);
+int vox_view(int32_t x, int32_t y, int h, int32_t angle);
 void vox_proj(int fov, int znear, int zfar);
 
 void vox_render(void);
@@ -32,6 +34,7 @@ void vox_sky_grad(uint8_t chor, uint8_t ctop);
 
 void vox_objects(struct vox_object *ptr, int count, int stride);
 
+int vox_height(int x, int y);
 int vox_check_vis(int32_t x0, int32_t y0, int32_t x1, int32_t y1);
 
 #endif	/* VOXSCAPE_H_ */

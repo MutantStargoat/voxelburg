@@ -14,12 +14,14 @@
 #include "data.h"
 #include "scoredb.h"
 
+#define POS_MASK	((VOX_SZ << 16) - 1)
+
 #define FOV		30
 #define NEAR	2
 #define FAR		85
 
 #define P_RATE	250
-#define E_RATE	250
+#define E_RATE	3000
 #define SHOT_TIME	50
 
 #define ENEMY_VIS_RANGE	(2 * FAR / 3)
@@ -41,13 +43,19 @@ static struct screen gamescr = {
 	gamescr_vblank
 };
 
+#define ENEMY_ENERGY	4
 struct enemy {
 	struct vox_object vobj;
 	short hp;
-	short anm;
+	unsigned char anm;
+	signed char shot_frame;
 	int last_shot;
 };
 #define ENEMY_VALID(e)	((e)->anm != 0)
+#define NUM_SHOT_FRAMES	16
+
+#define SFRM_LVL1	5
+#define SFRM_LVL2	12
 
 static uint16_t *framebuf;
 
@@ -57,11 +65,12 @@ static uint16_t *vram[] = { gba_vram_lfb0, gba_vram_lfb1 };
 static int32_t pos[2], angle, horizon = 80;
 static long last_shot, hitfrm;
 static int hit_px, hit_py;
+static int pheight;
 
 #define COLOR_HORIZON	192
 #define COLOR_ZENITH	255
 
-#define MAX_SPR		40
+#define MAX_SPR		48
 static uint16_t oam[4 * MAX_SPR];
 static int dynspr_base, dynspr_count;
 
@@ -72,9 +81,7 @@ static int num_kills, total_enemies;
 static int energy;
 #define MAX_ENERGY	5
 
-#define ENEMY_ENERGY	4
-
-static int score;
+static int score, gameover;
 static unsigned long total_time, start_time;
 static int running;
 
@@ -86,6 +93,8 @@ static int xform_s;
 static short vblcount;
 static void *prev_iwram_top;
 
+static int hit_frame;
+static uint16_t color0;
 
 static inline void xform_pixel(int *xp, int *yp);
 
@@ -108,6 +117,8 @@ static void setup_palette(void)
 		int b = cmap[i * 3 + 2];
 		gba_bgpal[i] = RGB555(r, g, b);
 	}
+
+	color0 = gba_bgpal[0];
 }
 
 static int gamescr_start(void)
@@ -129,7 +140,7 @@ static int gamescr_start(void)
 
 	vox_init(VOX_SZ, VOX_SZ, height_pixels, color_pixels);
 	vox_proj(FOV, NEAR, FAR);
-	vox_view(pos[0], pos[1], -40, angle);
+	pheight = vox_view(pos[0], pos[1], -40, angle);
 
 	/* setup color image palette */
 	setup_palette();
@@ -177,6 +188,7 @@ static int gamescr_start(void)
 				enemy->anm = 0xff;
 				enemy->hp = ENEMY_ENERGY;
 				enemy->last_shot = timer_msec > E_RATE ? timer_msec - E_RATE : 0;
+				enemy->shot_frame = -1;
 				if(++total_enemies >= MAX_ENEMIES) {
 					goto endspawn;
 				}
@@ -201,6 +213,7 @@ endspawn:
 	xform_ca = 0x10000;
 	xform_s = 0x100;
 
+	gameover = 0;
 	score = -1;
 	total_time = 0;
 	start_time = timer_msec;
@@ -275,11 +288,16 @@ static int numspr[][2] = {
 #define TURN_SPEED	0x200
 #define ELEV_SPEED	8
 
+#define MAX(a, b)	((a > (b) ? (a) : (b)))
+
 static int update(void)
 {
 	int32_t fwd[2], right[2];
 	int i, snum, ledspr;
 	struct enemy *enemy;
+	int did_strafe = 0;
+
+	hit_frame = 0;
 
 	update_keyb();
 
@@ -287,6 +305,10 @@ static int update(void)
 		/* TODO pause menu */
 		change_screen(find_screen("menu"));
 		return -1;
+	}
+
+	if(gameover) {
+		goto skip_game_logic;
 	}
 
 	if(keystate) {
@@ -303,8 +325,10 @@ static int update(void)
 		right[1] = -fwd[0];
 
 		if(keystate & BN_A) {
-			pos[0] += fwd[0];
-			pos[1] += fwd[1];
+			pos[0] = (pos[0] + fwd[0]) & POS_MASK;
+			pos[1] = (pos[1] + fwd[1]) & POS_MASK;
+			if(pos[0] < 0) pos[0] += VOX_SZ << 16;
+			if(pos[1] < 0) pos[1] += VOX_SZ << 16;
 		}
 
 		if((keystate & BN_B) && (timer_msec - last_shot >= P_RATE)) {
@@ -315,10 +339,10 @@ static int update(void)
 					int dy = enemies[i].vobj.py - 80;
 					int rad = enemies[i].vobj.scale >> 5;
 
-					/*emuprint("rad: %d (%d,%d)", rad, enemies[i].vobj.px, enemies[i].vobj.py);*/
 					if(rad < 1) rad = 1;
 
 					if(abs(dx) < rad && abs(dy) < (rad << 1)) {
+						enemies[i].shot_frame = -1;
 						if(--enemies[i].hp <= 0) {
 							if(++num_kills >= total_enemies) {
 								victory();
@@ -339,37 +363,54 @@ static int update(void)
 			if(horizon < 200 - ELEV_SPEED) horizon += ELEV_SPEED;
 		}
 		if(keystate & BN_RT) {
-			pos[0] += right[0];
-			pos[1] += right[1];
+			pos[0] = (pos[0] + right[0]) & POS_MASK;
+			pos[1] = (pos[1] + right[1]) & POS_MASK;
+			if(pos[0] < 0) pos[0] += VOX_SZ << 16;
+			if(pos[1] < 0) pos[1] += VOX_SZ << 16;
+			did_strafe = 1;
 		}
 		if(keystate & BN_LT) {
-			pos[0] -= right[0];
-			pos[1] -= right[1];
+			pos[0] = (pos[0] - right[0]) & POS_MASK;
+			pos[1] = (pos[1] - right[1]) & POS_MASK;
+			if(pos[0] < 0) pos[0] += VOX_SZ << 16;
+			if(pos[1] < 0) pos[1] += VOX_SZ << 16;
+			did_strafe = 1;
 		}
 
-		vox_view(pos[0], pos[1], -40, angle);
+		pheight = vox_view(pos[0], pos[1], -40, angle);
 	}
 
 	/* enemy logic */
 	enemy = enemies;
 	for(i=0; i<total_enemies; i++) {
-		int32_t dx, dy;
-
-		if(enemy->hp <= 0 || timer_msec - enemy->last_shot < E_RATE) {
+		/* only consider visible enemies which are not dead */
+		if(enemy->hp <= 0 || enemy->vobj.px < 0) {
 			enemy++;
 			continue;
 		}
 
-		dx = enemy->vobj.x - pos[0];
-		dy = enemy->vobj.y - pos[1];
-		if(abs(dx >> 16) < ENEMY_VIS_RANGE && abs(dy >> 16) < ENEMY_VIS_RANGE) {
-			if(vox_check_vis(enemy->vobj.x, enemy->vobj.y, pos[0], pos[1])) {
+		if(enemy->shot_frame >= 0) {
+			/* in the process of charging a shot */
+			if(++enemy->shot_frame >= NUM_SHOT_FRAMES - 1) {
+				if(!did_strafe) {
+					hit_frame = 1;
+					if(--energy <= 0) {
+						gameover = 1;
+					}
+				}
+				enemy->shot_frame = -1;
+			}
+		} else {
+			/* check rate of fire and start a shot if necessary */
+			if(timer_msec - enemy->last_shot >= E_RATE) {
 				enemy->last_shot = timer_msec;
-				/* TODO shoot */
+				enemy->shot_frame = 0;
 			}
 		}
 		enemy++;
 	}
+
+skip_game_logic:
 
 	snum = 0;
 	/* turrets number */
@@ -432,6 +473,21 @@ static int update(void)
 			py = enemy->vobj.py - 80;
 			xform_pixel(&px, &py);
 
+
+			if(enemy->shot_frame >= 0) {
+				if(enemy->shot_frame < SFRM_LVL1) {
+					spr_oam(oam, dynspr_base + snum++, SPRID_SHOT0, px - 16, py - 16,
+							SPR_DBLSZ | SPR_SZ16 | SPR_256COL | SPR_ROTSCL | SPR_ROTSCL_SEL(0));
+				} else if(enemy->shot_frame < SFRM_LVL2) {
+					spr_oam(oam, dynspr_base + snum++, SPRID_SHOT1, px - 16, py - 16,
+							SPR_DBLSZ | SPR_SZ16 | SPR_256COL | SPR_ROTSCL | SPR_ROTSCL_SEL(0));
+				} else {
+					spr_oam(oam, dynspr_base + snum++, SPRID_SHOT2, px - 16, py - 16,
+							SPR_DBLSZ | SPR_SZ16 | SPR_256COL | SPR_ROTSCL | SPR_ROTSCL_SEL(0));
+				}
+			}
+
+
 			spr_oam(oam, dynspr_base + snum++, sid, px - 16, py - yoffs, flags);
 
 			scale = enemy->vobj.scale;
@@ -464,11 +520,16 @@ static void draw(void)
 	//dma_fill16(3, framebuf, 0, 240 * 160 / 2);
 	fillblock_16byte(framebuf, 0, 240 * 160 / 16);
 
-	vox_render();
+	if(hit_frame) {
+		gba_bgpal[0] = 0x7fff;
+	} else {
+		gba_bgpal[0] = color0;
+		vox_render();
+	}
 	//vox_sky_grad(COLOR_HORIZON, COLOR_ZENITH);
 	//vox_sky_solid(COLOR_ZENITH);
 
-	if(score >= 0) {
+	if(score >= 0 || energy <= 0) {
 		int sec = total_time / 1000;
 
 		fillblock_16byte(framebuf + 8 * 240 / 2, 199 | (199 << 8) | (199 << 16) | (199 << 24), 40 * 240 / 16);
@@ -476,10 +537,14 @@ static void draw(void)
 		glyphfb = framebuf;
 		glyphbg = 199;
 		glyphcolor = 197;
-		dbg_drawstr(80, 10, "Victory!");
-		glyphcolor = 200;
-		dbg_drawstr(30, 20, "       Score: %d", score);
-		dbg_drawstr(30, 28, "Completed in: %lum.%lus", sec / 60, sec % 60);
+		if(energy > 0) {
+			dbg_drawstr(80, 10, "Victory!");
+			glyphcolor = 200;
+			dbg_drawstr(30, 20, "       Score: %d", score);
+			dbg_drawstr(30, 28, "Completed in: %lum.%lus", sec / 60, sec % 60);
+		} else {
+			dbg_drawstr(80, 10, "Game Over!");
+		}
 		glyphcolor = 198;
 		dbg_drawstr(85, 40, "Press start to exit");
 	}
@@ -524,6 +589,8 @@ static void gamescr_vblank(void)
 
 	/*dma_copy32(3, (void*)(OAM_ADDR + dynspr_base * 8), oam + dynspr_base * 4, MAX_SPR * 2, 0);*/
 	dma_copy32(3, (void*)OAM_ADDR, oam, MAX_SPR * 2, 0);
+
+	if(gameover) return;
 
 	theta = -(bank << 3);
 	xform_sa = SIN(theta);
