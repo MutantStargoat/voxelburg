@@ -553,7 +553,7 @@ static void draw(void)
 
 static void victory(void)
 {
-	int sec, time_bonus;
+	int sec, time_bonus = 0;
 
 	total_time = timer_msec - start_time;
 	sec = total_time / 1000;

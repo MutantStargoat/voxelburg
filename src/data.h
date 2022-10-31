@@ -59,4 +59,8 @@ extern unsigned char spr_menu_cmap[];
 extern unsigned char spr_logo_pixels[];
 extern unsigned char spr_logo_cmap[];
 
+extern unsigned char controls_pixels[];
+extern unsigned char controls_cmap[];
+extern unsigned char controls_gba_cmap[];
+
 #endif	/* DATA_H_ */

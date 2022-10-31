@@ -5,6 +5,7 @@
 struct screen *init_logo_screen(void);
 struct screen *init_menu_screen(void);
 struct screen *init_game_screen(void);
+struct screen *init_controls_screen(void);
 
 struct screen *curscr;
 
@@ -18,6 +19,9 @@ int init_screens(void)
 		return -1;
 	}
 	if(!(scrlist[num_scr++] = init_menu_screen())) {
+		return -1;
+	}
+	if(!(scrlist[num_scr++] = init_controls_screen())) {
 		return -1;
 	}
 	if(!(scrlist[num_scr++] = init_game_screen())) {

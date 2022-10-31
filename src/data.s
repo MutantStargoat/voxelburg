@@ -14,6 +14,9 @@
 	.globl spr_menu_cmap
 	.globl spr_logo_pixels
 	.globl spr_logo_cmap
+	.globl controls_pixels
+	.globl controls_cmap
+	.globl controls_gba_cmap
 
 	.align 1
 color_pixels:
@@ -70,3 +73,16 @@ spr_logo_pixels:
 	.align 1
 spr_logo_cmap:
 	.incbin "data/spr_logo.pal"
+
+	.align 1
+controls_pixels:
+	.incbin "data/controls.raw"
+
+	.align 1
+controls_cmap:
+	.incbin "data/controls.pal"
+
+	.align 1
+controls_gba_cmap:
+	.incbin "data/controls.gpal"
+

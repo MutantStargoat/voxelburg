@@ -86,9 +86,22 @@ static void menuscr_frame(void)
 {
 	update_keyb();
 
-	if(KEYPRESS(BN_START) || (sel == 0 && KEYPRESS(BN_A))) {
+	if(KEYPRESS(BN_START)) {
 		change_screen(find_screen("game"));
 		return;
+	}
+
+	if(KEYPRESS(BN_A)) {
+		switch(sel) {
+		case MENU_START:
+			change_screen(find_screen("game"));
+			return;
+		case MENU_CTRL:
+			change_screen(find_screen("controls"));
+			return;
+		default:
+			break;
+		}
 	}
 
 	if(KEYPRESS(BN_DOWN) && sel <= NUM_MENU_ITEMS) {
