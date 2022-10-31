@@ -32,4 +32,6 @@ void vox_sky_grad(uint8_t chor, uint8_t ctop);
 
 void vox_objects(struct vox_object *ptr, int count, int stride);
 
+int vox_check_vis(int32_t x0, int32_t y0, int32_t x1, int32_t y1);
+
 #endif	/* VOXSCAPE_H_ */

@@ -289,3 +289,9 @@ void vox_objects(struct vox_object *ptr, int count, int stride)
 		obj = (struct vox_object*)((char*)obj + stride);
 	}
 }
+
+int vox_check_vis(int32_t x0, int32_t y0, int32_t x1, int32_t y1)
+{
+	/* TODO */
+	return 0;
+}

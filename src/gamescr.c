@@ -22,6 +22,8 @@
 #define E_RATE	250
 #define SHOT_TIME	50
 
+#define ENEMY_VIS_RANGE	(2 * FAR / 3)
+
 static int gamescr_start(void);
 static void gamescr_stop(void);
 static void gamescr_frame(void);
@@ -346,6 +348,27 @@ static int update(void)
 		}
 
 		vox_view(pos[0], pos[1], -40, angle);
+	}
+
+	/* enemy logic */
+	enemy = enemies;
+	for(i=0; i<total_enemies; i++) {
+		int32_t dx, dy;
+
+		if(enemy->hp <= 0 || timer_msec - enemy->last_shot < E_RATE) {
+			enemy++;
+			continue;
+		}
+
+		dx = enemy->vobj.x - pos[0];
+		dy = enemy->vobj.y - pos[1];
+		if(abs(dx >> 16) < ENEMY_VIS_RANGE && abs(dy >> 16) < ENEMY_VIS_RANGE) {
+			if(vox_check_vis(enemy->vobj.x, enemy->vobj.y, pos[0], pos[1])) {
+				enemy->last_shot = timer_msec;
+				/* TODO shoot */
+			}
+		}
+		enemy++;
 	}
 
 	snum = 0;
