@@ -383,8 +383,8 @@ static int update(void)
 	/* enemy logic */
 	enemy = enemies;
 	for(i=0; i<total_enemies; i++) {
-		/* only consider visible enemies which are not dead */
-		if(enemy->hp <= 0 || enemy->vobj.px < 0) {
+		/* only consider enemies which are not dead */
+		if(enemy->hp <= 0) {
 			enemy++;
 			continue;
 		}
@@ -392,7 +392,8 @@ static int update(void)
 		if(enemy->shot_frame >= 0) {
 			/* in the process of charging a shot */
 			if(++enemy->shot_frame >= NUM_SHOT_FRAMES - 1) {
-				if(!did_strafe) {
+				/* only get hit if we can see the enemy and we didn't strafe */
+				if(!did_strafe && enemy->vobj.px >= 0) {
 					hit_frame = 1;
 					if(--energy <= 0) {
 						gameover = 1;
@@ -400,7 +401,7 @@ static int update(void)
 				}
 				enemy->shot_frame = -1;
 			}
-		} else {
+		} else if(enemy->vobj.px >= 0) {
 			/* check rate of fire and start a shot if necessary */
 			if(timer_msec - enemy->last_shot >= E_RATE) {
 				enemy->last_shot = timer_msec;
