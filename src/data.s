@@ -6,6 +6,7 @@
 	.globl height_pixels
 	.globl spr_game_pixels
 	.globl spr_game_cmap
+	.globl spr_game_gba_cmap
 	.globl menuscr_pixels
 	.globl menuscr_cmap
 	.globl menuscr_gba_cmap
@@ -37,6 +38,10 @@ spr_game_pixels:
 	.align 1
 spr_game_cmap:
 	.incbin "data/spr_game.pal"
+
+	.align 1
+spr_game_gba_cmap:
+	.incbin "data/spr_game.gpal"
 
 	.align 1
 menuscr_pixels:

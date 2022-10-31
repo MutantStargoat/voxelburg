@@ -46,6 +46,7 @@ extern unsigned char height_pixels[];
 
 extern unsigned char spr_game_pixels[];
 extern unsigned char spr_game_cmap[];
+extern unsigned char spr_game_gba_cmap[];
 
 /* menu screen assets */
 extern unsigned char menuscr_pixels[];

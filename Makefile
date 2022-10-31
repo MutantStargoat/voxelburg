@@ -7,7 +7,8 @@ elf = $(name).elf
 bin = $(name).gba
 
 data = data/color.raw data/color.pal data/color.gpal data/height.raw \
-	   data/spr_game.raw data/spr_game.pal data/spr_logo.raw data/spr_logo.pal \
+	   data/spr_game.raw data/spr_game.pal data/spr_game.gpal \
+	   data/spr_logo.raw data/spr_logo.pal \
 	   data/menuscr.raw data/menuscr.pal data/menuscr.gpal \
 	   data/spr_menu.raw data/spr_menu.pal
 

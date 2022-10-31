@@ -109,8 +109,6 @@ static void setup_palette(void)
 	int i;
 	unsigned char *cmap = gba_colors ? color_gba_cmap : color_cmap;
 
-	emuprint("setting up %s palette", gba_colors ? "GBA" : "NDS/Emu");
-
 	for(i=0; i<256; i++) {
 		int r = cmap[i * 3];
 		int g = cmap[i * 3 + 1];
@@ -145,7 +143,7 @@ static int gamescr_start(void)
 	/* setup color image palette */
 	setup_palette();
 
-	spr_setup(16, 16, spr_game_pixels, spr_game_cmap);
+	spr_setup(16, 16, spr_game_pixels, gba_colors ? spr_game_gba_cmap : spr_game_cmap);
 	wait_vblank();
 	spr_clear();
 
