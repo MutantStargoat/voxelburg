@@ -187,7 +187,7 @@ static int gamescr_start(void)
 				enemy->vobj.px = -1;
 				enemy->anm = 0xff;
 				enemy->hp = ENEMY_ENERGY;
-				enemy->last_shot = timer_msec > E_RATE ? timer_msec - E_RATE : 0;
+				enemy->last_shot = -1;
 				enemy->shot_frame = -1;
 				if(++total_enemies >= MAX_ENEMIES) {
 					goto endspawn;
@@ -197,7 +197,6 @@ static int gamescr_start(void)
 		}
 	}
 endspawn:
-	total_enemies = 1;	/* XXX DBG */
 	/* check continuity */
 	for(i=0; i<total_enemies; i++) {
 		if(enemies[i].anm <= 0) {
@@ -262,9 +261,10 @@ static void gamescr_frame(void)
 	wait_vblank();
 	present(backbuf);
 
+	/*
 	if(!(nframes & 15)) {
 		emuprint("vbl: %d", vblperf_count);
-	}
+	}*/
 #ifdef VBLBAR
 	vblperf_begin();
 #else
@@ -403,7 +403,9 @@ static int update(void)
 			}
 		} else if(enemy->vobj.px >= 0) {
 			/* check rate of fire and start a shot if necessary */
-			if(timer_msec - enemy->last_shot >= E_RATE) {
+			if(enemy->last_shot == -1) {
+				enemy->last_shot = timer_msec;
+			} else if(timer_msec - enemy->last_shot >= E_RATE) {
 				enemy->last_shot = timer_msec;
 				enemy->shot_frame = 0;
 			}
