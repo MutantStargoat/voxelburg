@@ -553,8 +553,20 @@ static void draw(void)
 
 static void victory(void)
 {
+	int sec, time_bonus;
+
 	total_time = timer_msec - start_time;
-	score = 42;
+	sec = total_time / 1000;
+
+	if(sec < 60) {
+		time_bonus = 1000 + (60 - sec) * 100;
+	} else if(sec < 120) {
+		time_bonus = 250 + (60 - (sec - 60)) * 10;
+	} else if(sec < 300) {
+		time_bonus = 100;
+	}
+
+	score = energy * 250 + time_bonus;
 
 	/* TODO enter name */
 	save_score("???", score, total_time, 0);
