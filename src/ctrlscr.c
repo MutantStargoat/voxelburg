@@ -5,6 +5,7 @@
 #include "dma.h"
 #include "input.h"
 #include "debug.h"
+#include "timer.h"
 
 static int ctrlscr_start(void);
 static void ctrlscr_stop(void);
@@ -57,6 +58,7 @@ static void ctrlscr_frame(void)
 
 	if(KEYPRESS(BN_START) || KEYPRESS(BN_A) || KEYPRESS(BN_B)) {
 		change_screen(find_screen("menu"));
+		delay(250);
 		return;
 	}
 

@@ -68,8 +68,8 @@ static int menuscr_start(void)
 	wait_vblank();
 	spr_clear();
 
-	cur_x = pos[0][0] - CUR_XOFFS;
-	cur_y = pos[0][1];
+	cur_x = pos[sel][0] - CUR_XOFFS;
+	cur_y = pos[sel][1];
 
 	running = 1;
 	return 0;
