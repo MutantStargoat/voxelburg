@@ -11,6 +11,7 @@ Controls
 --------
   - D-Pad: turn left/right/up/down.
   - A: fly forward.
+  - B: shoot.
   - L/R triggers: strafe left/right.
 
 License
