@@ -6,6 +6,7 @@ cfg.mk
 *.elf
 *.a
 pngdump
+meshdump
 mmutil
 lutgen
 vistab
