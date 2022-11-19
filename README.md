@@ -1,11 +1,18 @@
 Attack on Voxelburg
 ===================
 
-A wip Gameboy Advance game for the gbajam22.
+A Gameboy Advance game for the gbajam22.
+
+![screenshot](http://nuclear.mutantstargoat.com/sw/games/voxelburg/img/gameshot1-2x.png)
 
 Fly over a 3D terrain, find and destroy all enemy defense pods, before they
 manage to shoot you down. Your final score depends on the difficulty level, time
 it took to take out all the enemy pods, and damage you sustained.
+
+You can download pre-compiled release versions of this game, which include the
+Gameboy Advance ROM image, from the game page on itch.io:
+https://nuclear.itch.io/attack-on-voxelburg
+or the github repo releases page.
 
 Controls
 --------
@@ -13,6 +20,7 @@ Controls
   - A: fly forward.
   - B: shoot.
   - L/R triggers: strafe left/right.
+  - Start: exit to main menu.
 
 License
 -------
