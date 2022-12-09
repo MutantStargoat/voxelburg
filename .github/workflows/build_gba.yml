@@ -32,6 +32,7 @@ jobs:
         sudo ./install-devkitpro-pacman
         sudo dkp-pacman -Sy
         sudo dkp-pacman -S gba-dev --noconfirm
+        sudo chmod -R a+r /opt/devkitpro
 
     - name: prepare datafiles
       run: |
@@ -41,7 +42,7 @@ jobs:
       run: |
         export DEVKITPRO=/opt/devkitpro
         export DEVKITARM=/opt/devkitpro/devkitARM
-        export PATH=$DEVKITARM/bin:$PATH
+        export PATH=$DEVKITARM/bin:$DEVKITPRO/tools/bin:$PATH
         make
 
     - uses: actions/upload-artifact@v3
