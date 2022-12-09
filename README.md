@@ -1,6 +1,8 @@
 Attack on Voxelburg
 ===================
 
+![GBA build status](https://github.com/jtsiomb/voxelburg/actions/workflows/build_gba.yml/badge.svg)
+
 A Gameboy Advance game for the gbajam22.
 
 ![screenshot](http://nuclear.mutantstargoat.com/sw/games/voxelburg/img/gameshot1-2x.png)
