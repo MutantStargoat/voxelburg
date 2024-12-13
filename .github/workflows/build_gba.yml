@@ -45,7 +45,7 @@ jobs:
         export PATH=$DEVKITARM/bin:$DEVKITPRO/tools/bin:$PATH
         make
 
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       with:
         name: voxelburg
         path: voxelburg.gba
